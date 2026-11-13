@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PesoWise | Student Budget Tracker</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-alt: #334155;
+            --border: #475569;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #10b981;
+            --primary-hover: #059669;
+            --primary-soft: rgba(16, 185, 129, 0.15);
+            --danger: #ef4444;
+            --danger-soft: rgba(239, 68, 68, 0.15);
+            --warning: #f59e0b;
+            --warning-soft: rgba(245, 158, 11, 0.15);
+            --radius: 12px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 40px; }
+        
+        /* Top Header */
+        header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 30; }
+        .logo { font-size: 1.25rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .user-badge { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: #000; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+        /* Window Navigation Bar */
+        .window-nav-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 16px; position: sticky; top: 61px; z-index: 25; overflow-x: auto; white-space: nowrap; }
+        .window-tabs { display: inline-flex; gap: 6px; }
+        .win-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.15s; }
+        .win-tab:hover { background: var(--surface-alt); color: var(--text); }
+        .win-tab.active { background: var(--primary-soft); color: var(--primary); border-color: var(--primary); }
+
+        /* Containers & Windows */
+        .container { max-width: 900px; margin: 20px auto; padding: 0 16px; }
+        .window-pane { display: none; }
+        .window-pane.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards & UI Elements */
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+        .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media(max-width: 650px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        /* Forms & Inputs */
+        label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 8px; font-size: 0.95rem; margin-bottom: 14px; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); }
+        button.btn { background: var(--primary); color: #000; font-weight: 700; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 0.95rem; transition: 0.15s; }
+        button.btn:hover { background: var(--primary-hover); color: #fff; }
+        button.btn-alt { background: var(--surface-alt); color: var(--text); }
+        button.btn-alt:hover { background: var(--border); }
+        .password-field-wrap {
+            position: relative;
+            margin-bottom: 14px;
+        }
+        .password-field-wrap input {
+            margin-bottom: 0;
+            padding-right: 42px;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: #000;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            font-weight: 700;
+            opacity: 1;
+        }
+        .password-toggle svg {
+            width: 18px;
+            height: 18px;
+            display: block;
+        }
+
+        /* Alerts & Badges */
+        .alert { padding: 14px; border-radius: 8px; margin-bottom: 16px; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
+        .alert-danger { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger); }
+        .alert-warning { background: var(--warning-soft); color: var(--warning); border: 1px solid var(--warning); }
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .badge-need { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .badge-want { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+
+        /* Progress Bar */
+        .progress-container { background: var(--bg); border-radius: 99px; height: 12px; width: 100%; overflow: hidden; margin: 10px 0; border: 1px solid var(--border); }
+        .progress-bar { background: var(--primary); height: 100%; width: 0%; transition: width 0.3s ease; }
+        .progress-bar.warning { background: var(--warning); }
+        .progress-bar.danger { background: var(--danger); }
+
+        /* Utility */
+        .hidden { display: none !important; }
+        .text-right { text-align: right; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <!-- Top Header -->
+    <header>
+        <div class="logo">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            PesoWise
+        </div>
+        <div id="headerUserSection" class="user-badge hidden">
+            <div class="avatar" id="userAvatar">U</div>
+            <span id="userNameDisplay">Student</span>
+            <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="signOut()">Sign Out</button>
+        </div>
+    </header>
+
+    <!-- Authentication Window (Shown when signed out) -->
+    <div id="authScreen" class="container" style="max-width: 440px; margin-top: 40px;">
+        <div class="card">
+            <h2 style="margin-bottom: 6px; text-align: center;">Welcome to PesoWise</h2>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Student Budget & Survival Mode Tracker</p>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button class="btn" id="tabLoginBtn" onclick="switchAuthTab('login')">Sign In</button>
+                <button class="btn btn-alt" id="tabRegisterBtn" onclick="switchAuthTab('register')">Create Account</button>
+            </div>
+
+            <!-- Sign In Form -->
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <label>Email or Username</label>
+                <input type="text" id="loginEmail" required placeholder="e.g., juan@lspu.edu.ph">
+                <label>Password</label>
+                <div class="password-field-wrap">
+                    <input type="password" id="loginPass" required placeholder="••••••••">
+                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('loginPass')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                            <circle cx="12" cy="12" r="2.7"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <div style="text-align: right; margin: -8px 0 14px;">
+                    <button type="button" class="btn btn-alt" style="width: auto; padding: 8px 12px; font-size: 0.75rem;" onclick="showResetForm()">Forgot Password?</button>
+                </div>
+                <button type="submit" class="btn">Sign In to My Budget</button>
+            </form>
+
+            <!-- Reset Password Form -->
+            <form id="resetPasswordForm" class="hidden" onsubmit="handleResetPassword(event)">
+                <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 12px;">
+                    <h3 style="margin:0; font-size: 1rem;">Reset Password</h3>
+                    <button type="button" class="btn btn-alt" style="width:auto; padding: 6px 10px; font-size:0.75rem;" onclick="showLoginForm()">Back</button>
+                </div>
+                <label>Email</label>
+                <input type="email" id="resetEmail" required placeholder="juan@lspu.edu.ph">
+                <label>Current Password</label>
+                <div class="password-field-wrap">
+                    <input type="password" id="resetCurrentPass" required placeholder="••••••••">
+                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('resetCurrentPass')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                            <circle cx="12" cy="12" r="2.7"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <label>New Password</label>
+                <div class="password-field-wrap">
+                    <input type="password" id="resetNewPass" required placeholder="••••••••">
+                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('resetNewPass')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                            <circle cx="12" cy="12" r="2.7"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <label>Confirm New Password</label>
+                <div class="password-field-wrap">
+                    <input type="password" id="resetConfirmPass" required placeholder="••••••••">
+                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('resetConfirmPass')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                            <circle cx="12" cy="12" r="2.7"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <button type="submit" class="btn">Reset Password</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" class="hidden" onsubmit="handleRegister(event)">
+                <label>Full Name</label>
+                <input type="text" id="regName" required placeholder="Juan Dela Cruz">
+                <label>Student Email / Username</label>
+                <input type="email" id="regEmail" required placeholder="juan@lspu.edu.ph">
+                <label>Password</label>
+                <div class="password-field-wrap">
+                    <input type="password" id="regPass" required placeholder="••••••••">
+                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('regPass')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                            <circle cx="12" cy="12" r="2.7"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <label>Confirm Password</label>
+                <div class="password-field-wrap">
+                    <input type="password" id="regConfirmPass" required placeholder="••••••••">
+                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('regConfirmPass')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                            <circle cx="12" cy="12" r="2.7"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <label>Initial Daily Allowance (₱)</label>
+                <input type="number" id="regAllowance" step="any" min="0" value="300" required>
+                <button type="submit" class="btn">Create Account & Sign In</button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Main Dashboard Application (Shown when signed in) -->
+    <div id="mainApp" class="hidden">
+        <!-- Multi-Window Navigation Bar -->
+        <nav class="window-nav-bar">
+            <div class="window-tabs container" style="margin: 0 auto; padding: 0;">
+                <button class="win-tab active" onclick="switchWindow('overview')">Overview & Survival</button>
+                <button class="win-tab" onclick="switchWindow('expenses')">Log & Expenses</button>
+                <button class="win-tab" onclick="switchWindow('savings')">Savings Vault</button>
+                <button class="win-tab" onclick="switchWindow('analytics')">Analytics Reports</button>
+                <button class="win-tab" onclick="switchWindow('account')">Account</button>
+            </div>
+        </nav>
+
+        <div class="container">
+            <!-- WINDOW 1: Overview & Survival -->
+            <div id="win-overview" class="window-pane active">
+                <div id="alertBanner" class="hidden"></div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span>Survival Mode Countdown</span>
+                        <span id="dateDisplay" style="font-size: 0.85rem; color: var(--text-muted);"></span>
+                    </div>
+                    <div class="grid-2" style="align-items: center;">
+                        <div>
+                            <p style="color: var(--text-muted); font-size: 0.85rem;">Daily Allowance</p>
+                            <h2 id="summaryAllowance" style="font-size: 1.8rem; margin-bottom: 10px;">₱0.00</h2>
+                            <p style="color: var(--text-muted); font-size: 0.85rem;">Spent Today</p>
+                            <h3 id="summarySpentToday" style="font-size: 1.4rem; color: var(--danger);">₱0.00</h3>
+                        </div>
+                        <div style="background: var(--bg); padding: 16px; border-radius: 10px; border: 1px solid var(--border); text-align: center;">
+                            <p style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Remaining Allowance</p>
+                            <h1 id="summaryRemaining" style="font-size: 2.2rem; margin: 6px 0; color: var(--primary);">₱0.00</h1>
+                            <div class="progress-container"><div id="allowanceProgressBar" class="progress-bar"></div></div>
+                            <span id="allowancePercentText" style="font-size: 0.8rem; color: var(--text-muted);">0% spent today</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Set Daily Allowance</div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="newAllowanceInput" step="any" min="0" placeholder="Enter daily allowance" style="margin-bottom: 0;">
+                        <button class="btn" style="width: auto; padding: 0 20px;" onclick="updateAllowance()">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WINDOW 2: Log & Expenses -->
+            <div id="win-expenses" class="window-pane">
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">Add Expense</div>
+                        <form onsubmit="handleAddExpense(event)">
+                            <label>Description</label>
+                            <input type="text" id="expDesc" required placeholder="e.g., Jeepney fare, Lunch">
+                            <label>Amount (₱)</label>
+                            <input type="number" id="expAmount" step="any" min="0.01" required placeholder="0.00">
+                            <label>Category</label>
+                            <select id="expCategory" onchange="previewCategoryType()">
+                                <optgroup label="Needs">
+                                    <option value="Food">Food</option>
+                                    <option value="Transportation">Transportation</option>
+                                    <option value="School Supplies">School Supplies</option>
+                                    <option value="School Projects">School Projects</option>
+                                    <option value="Medicine">Medicine</option>
+                                    <option value="Other Needs">Other Needs</option>
+                                </optgroup>
+                                <optgroup label="Wants">
+                                    <option value="Entertainment">Entertainment</option>
+                                    <option value="Shopping">Shopping</option>
+                                    <option value="Games">Games</option>
+                                    <option value="Eating Out">Eating Out</option>
+                                    <option value="Subscriptions">Subscriptions</option>
+                                    <option value="Other Wants">Other Wants</option>
+                                </optgroup>
+                            </select>
+                            <div style="margin-bottom: 14px; font-size: 0.85rem;">
+                                Classification: <span id="expTypePreview" class="badge badge-need">Need</span>
+                            </div>
+                            <label>Date</label>
+                            <input type="date" id="expDate" required>
+                            <button type="submit" class="btn">Record Expense</button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Expense History</div>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <table>
+                                <thead>
+                                    <tr><th>Description</th><th>Category</th><th>Amount</th><th></th></tr>
+                                </thead>
+                                <tbody id="expenseTableBody">
+                                    <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No expenses recorded yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WINDOW 3: Savings Goals -->
+            <div id="win-savings" class="window-pane">
+                <div class="card">
+                    <div class="card-title">Create Savings Goal</div>
+                    <form onsubmit="handleAddGoal(event)">
+                        <label>Goal Name</label>
+                        <input type="text" id="goalName" required placeholder="e.g., New Arduino Kit, Textbook">
+                        <label>Target Amount (₱)</label>
+                        <input type="number" id="goalTarget" step="any" min="1" required placeholder="1000">
+                        <button type="submit" class="btn">Create Goal</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Active Savings Goals</div>
+                    <div id="goalsContainer">
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">No savings goals created yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WINDOW 4: Analytics Reports -->
+            <div id="win-analytics" class="window-pane">
+                <div class="card">
+                    <div class="card-title">
+                        <span>Spending Reports</span>
+                        <select id="reportFilter" onchange="renderAnalytics()" style="width: 140px; margin-bottom: 0; padding: 6px;">
+                            <option value="today">Today</option>
+                            <option value="week" selected>Last 7 Days</option>
+                            <option value="month">Last 30 Days</option>
+                        </select>
+                    </div>
+                    <div class="grid-2" style="margin-top: 16px;">
+                        <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
+                            <p style="color: var(--text-muted); font-size: 0.8rem;">Total Spent</p>
+                            <h3 id="reportTotalSpent" style="font-size: 1.5rem; color: var(--danger);">₱0.00</h3>
+                        </div>
+                        <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
+                            <p style="color: var(--text-muted); font-size: 0.8rem;">Needs vs Wants Split</p>
+                            <p style="font-size: 0.95rem; margin-top: 4px;"><span id="reportNeeds" style="color: #60a5fa;">Needs: ₱0</span> | <span id="reportWants" style="color: #f472b6;">Wants: ₱0</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WINDOW 5: Account -->
+            <div id="win-account" class="window-pane">
+                <div class="card">
+                    <div class="card-title">Student Account Profile</div>
+                    <p style="margin-bottom: 8px;"><strong>Name:</strong> <span id="profileName">-</span></p>
+                    <p style="margin-bottom: 16px;"><strong>Email:</strong> <span id="profileEmail">-</span></p>
+                    <form onsubmit="handleChangePassword(event)" style="margin-top: 10px;">
+                        <label>Current Password</label>
+                        <div class="password-field-wrap">
+                            <input type="password" id="currentPassword" required placeholder="Enter current password">
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('currentPassword')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                                    <circle cx="12" cy="12" r="2.7"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                        <label>New Password</label>
+                        <div class="password-field-wrap">
+                            <input type="password" id="newPassword" required placeholder="Enter new password">
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('newPassword')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                                    <circle cx="12" cy="12" r="2.7"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                        <label>Confirm New Password</label>
+                        <div class="password-field-wrap">
+                            <input type="password" id="confirmNewPassword" required placeholder="Re-enter new password">
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('confirmNewPassword')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                                    <circle cx="12" cy="12" r="2.7"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                        <button type="submit" class="btn">Change Password</button>
+                    </form>
+                    <button class="btn btn-alt" onclick="signOut()" style="margin-top: 16px;">Sign Out of Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        const NEED_CATEGORIES = new Set(["Food", "Transportation", "School Supplies", "School Projects", "Medicine", "Other Needs"]);
+        const WANT_CATEGORIES = new Set(["Entertainment", "Shopping", "Games", "Eating Out", "Subscriptions", "Other Wants"]);
+        const ALL_CATEGORIES = [...new Set([...NEED_CATEGORIES, ...WANT_CATEGORIES])].sort();
+        
+        let currentUser = null;
+        let dbState = {
+            allowance: 300,
+            expenses: [],
+            goals: []
+        };
+
+        async function apiRequest(path, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            };
+
+            if (body !== null) {
+                options.body = JSON.stringify(body);
+            }
+
+            const response = await fetch(path, options);
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Request failed.');
+            }
+
+            return data;
+        }
+
+        async function initApp() {
+            document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
+            try {
+                const data = await apiRequest('/api/me');
+                if (data.user) {
+                    currentUser = data.user;
+                    await loadUserData();
+                    showMainApp();
+                    return;
+                }
+            } catch (err) {
+                console.info('No active session found:', err.message);
+            }
+
+            localStorage.removeItem('pesowise_user');
+            showAuthScreen();
+        }
+
+        function showLoginForm() {
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('resetPasswordForm').classList.add('hidden');
+            document.getElementById('tabLoginBtn').classList.remove('btn-alt');
+            document.getElementById('tabRegisterBtn').classList.add('btn-alt');
+        }
+
+        function showResetForm() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('resetPasswordForm').classList.remove('hidden');
+            document.getElementById('tabLoginBtn').classList.add('btn-alt');
+            document.getElementById('tabRegisterBtn').classList.add('btn-alt');
+        }
+
+        function switchAuthTab(tab) {
+            if (tab === 'login') {
+                showLoginForm();
+            } else {
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('registerForm').classList.remove('hidden');
+                document.getElementById('resetPasswordForm').classList.add('hidden');
+                document.getElementById('tabRegisterBtn').classList.remove('btn-alt');
+                document.getElementById('tabLoginBtn').classList.add('btn-alt');
+            }
+        }
+
+        function getFreshDbState(allowance = 300) {
+            return {
+                allowance: allowance,
+                expenses: [],
+                goals: []
+            };
+        }
+
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const toggleButton = input.parentElement.querySelector('.password-toggle');
+            const svg = toggleButton.querySelector('svg');
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+
+            if (isPassword) {
+                svg.innerHTML = `
+                    <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                    <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                `;
+                toggleButton.setAttribute('aria-label', 'Hide password');
+            } else {
+                svg.innerHTML = `
+                    <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                    <circle cx="12" cy="12" r="2.7"></circle>
+                `;
+                toggleButton.setAttribute('aria-label', 'Show password');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPass').value;
+
+            try {
+                const data = await apiRequest('/api/login', 'POST', { email, password });
+                currentUser = data.user;
+                localStorage.setItem('pesowise_user', JSON.stringify(currentUser));
+                await loadUserData();
+                showMainApp();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPass').value;
+            const confirmPassword = document.getElementById('regConfirmPass').value;
+            const allowance = parseFloat(document.getElementById('regAllowance').value) || 300;
+
+            if (password !== confirmPassword) {
+                alert('Passwords do not match. Please confirm your password.');
+                return;
+            }
+
+            try {
+                const data = await apiRequest('/api/register', 'POST', {
+                    name,
+                    email,
+                    password,
+                    confirmPassword,
+                    allowance
+                });
+                currentUser = data.user;
+                localStorage.setItem('pesowise_user', JSON.stringify(currentUser));
+                await loadUserData();
+                showMainApp();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function handleResetPassword(e) {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value.trim();
+            const currentPassword = document.getElementById('resetCurrentPass').value;
+            const newPassword = document.getElementById('resetNewPass').value;
+            const confirmPassword = document.getElementById('resetConfirmPass').value;
+
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match.');
+                return;
+            }
+
+            try {
+                const data = await apiRequest('/api/reset-password', 'POST', {
+                    email,
+                    currentPassword,
+                    newPassword,
+                    confirmPassword
+                });
+                alert(data.message);
+                showLoginForm();
+                document.getElementById('loginEmail').value = email;
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            if (!currentUser) {
+                alert('You need to sign in before changing your password.');
+                return;
+            }
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmNewPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                alert('New passwords do not match.');
+                return;
+            }
+
+            try {
+                const data = await apiRequest('/api/reset-password', 'POST', {
+                    email: currentUser.email,
+                    currentPassword,
+                    newPassword,
+                    confirmPassword
+                });
+                alert(data.message);
+                e.target.reset();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function signOut() {
+            try {
+                await apiRequest('/api/logout', 'POST', {});
+            } catch (err) {
+                console.info('Logout request failed:', err.message);
+            }
+            localStorage.removeItem('pesowise_user');
+            currentUser = null;
+            showAuthScreen();
+        }
+
+        function showAuthScreen() {
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('headerUserSection').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('headerUserSection').classList.remove('hidden');
+            document.getElementById('userNameDisplay').textContent = currentUser.name;
+            document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+            document.getElementById('profileName').textContent = currentUser.name;
+            document.getElementById('profileEmail').textContent = currentUser.email;
+            updateDashboard();
+        }
+
+        async function loadUserData() {
+            try {
+                const data = await apiRequest('/api/dashboard');
+                dbState = {
+                    allowance: Number(data.allowance || 0),
+                    expenses: Array.isArray(data.expenses) ? data.expenses : [],
+                    goals: Array.isArray(data.goals) ? data.goals : []
+                };
+                if (currentUser) {
+                    currentUser.allowance = dbState.allowance;
+                }
+            } catch (error) {
+                console.error('Failed to load dashboard data:', error.message);
+                dbState = getFreshDbState();
+            }
+        }
+
+        function saveUserData() {
+            updateDashboard();
+        }
+
+        function switchWindow(windowName) {
+            document.querySelectorAll('.window-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.win-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('win-' + windowName).classList.add('active');
+            event.currentTarget.classList.add('active');
+            if (windowName === 'analytics') renderAnalytics();
+        }
+
+        function previewCategoryType() {
+            const cat = document.getElementById('expCategory').value;
+            const badge = document.getElementById('expTypePreview');
+            if (NEED_CATEGORIES.has(cat)) {
+                badge.textContent = 'Need';
+                badge.className = 'badge badge-need';
+            } else {
+                badge.textContent = 'Want';
+                badge.className = 'badge badge-want';
+            }
+        }
+
+        async function updateAllowance() {
+            const val = parseFloat(document.getElementById('newAllowanceInput').value);
+            if (isNaN(val) || val < 0) {
+                alert('Please enter a valid allowance value.');
+                return;
+            }
+
+            try {
+                const data = await apiRequest('/api/allowance', 'PUT', { allowance: val });
+                dbState.allowance = Number(data.allowance || 0);
+                if (currentUser) currentUser.allowance = dbState.allowance;
+                document.getElementById('newAllowanceInput').value = '';
+                updateDashboard();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function handleAddExpense(e) {
+            e.preventDefault();
+            const desc = document.getElementById('expDesc').value.trim();
+            const amount = parseFloat(document.getElementById('expAmount').value);
+            const category = document.getElementById('expCategory').value;
+            const dateStr = document.getElementById('expDate').value;
+
+            try {
+                await apiRequest('/api/expenses', 'POST', {
+                    description: desc,
+                    amount,
+                    category,
+                    date: dateStr
+                });
+                await loadUserData();
+                e.target.reset();
+                document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
+                previewCategoryType();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function deleteExpense(id) {
+            try {
+                await apiRequest(`/api/expenses/${id}`, 'DELETE');
+                await loadUserData();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function editExpense(id) {
+            const expense = dbState.expenses.find(ex => ex.id === id);
+            if (!expense) return;
+
+            const newDescription = prompt('Edit description:', expense.description);
+            if (newDescription === null) return;
+
+            const newAmount = parseFloat(prompt('Edit amount:', expense.amount.toFixed(2)));
+            if (isNaN(newAmount) || newAmount <= 0) {
+                alert('Amount must be a valid number greater than zero.');
+                return;
+            }
+
+            const currentCategory = expense.category;
+            const categoryChoice = prompt(`Edit category (${ALL_CATEGORIES.join(', ')}):`, currentCategory);
+            if (categoryChoice === null) return;
+
+            const category = ALL_CATEGORIES.includes(categoryChoice) ? categoryChoice : currentCategory;
+            const newDate = prompt('Edit date (YYYY-MM-DD):', expense.date);
+            if (newDate === null) return;
+
+            try {
+                await apiRequest(`/api/expenses/${id}`, 'PUT', {
+                    description: newDescription.trim() || expense.description,
+                    amount: newAmount,
+                    category,
+                    date: newDate
+                });
+                await loadUserData();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function handleAddGoal(e) {
+            e.preventDefault();
+            const name = document.getElementById('goalName').value.trim();
+            const target = parseFloat(document.getElementById('goalTarget').value);
+
+            try {
+                await apiRequest('/api/goals', 'POST', { name, target, saved: 0 });
+                await loadUserData();
+                e.target.reset();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function contributeGoal(id, amount) {
+            try {
+                await apiRequest(`/api/goals/${id}/contribute`, 'POST', { amount });
+                await loadUserData();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function editGoal(id) {
+            const goal = dbState.goals.find(g => g.id === id);
+            if (!goal) return;
+
+            const newName = prompt('Edit goal name:', goal.name);
+            if (newName === null) return;
+
+            const newTarget = parseFloat(prompt('Edit target amount:', goal.target.toFixed(2)));
+            if (isNaN(newTarget) || newTarget <= 0) {
+                alert('Target must be greater than zero.');
+                return;
+            }
+
+            try {
+                await apiRequest(`/api/goals/${id}`, 'PUT', {
+                    name: newName.trim() || goal.name,
+                    target: newTarget,
+                    saved: Math.min(goal.saved, newTarget)
+                });
+                await loadUserData();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function deleteGoal(id) {
+            try {
+                await apiRequest(`/api/goals/${id}`, 'DELETE');
+                await loadUserData();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        function updateDashboard() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            const todaySpent = dbState.expenses.filter(ex => ex.date === todayStr).reduce((sum, ex) => sum + ex.amount, 0);
+            const remaining = dbState.allowance - todaySpent;
+            const isOverBudget = todaySpent > dbState.allowance;
+            const overAmount = isOverBudget ? todaySpent - dbState.allowance : 0;
+            const pct = dbState.allowance > 0 ? Math.min(100, Math.round((todaySpent / dbState.allowance) * 100)) : 0;
+
+            document.getElementById('summaryAllowance').textContent = `₱${dbState.allowance.toFixed(2)}`;
+            document.getElementById('summarySpentToday').textContent = `₱${todaySpent.toFixed(2)}`;
+            document.getElementById('summaryRemaining').textContent = `₱${remaining.toFixed(2)}`;
+            
+            const bar = document.getElementById('allowanceProgressBar');
+            bar.style.width = pct + '%';
+            bar.className = 'progress-bar' + (isOverBudget ? ' danger' : pct >= 80 ? ' warning' : '');
+            document.getElementById('allowancePercentText').textContent = isOverBudget
+                ? `Exceeded allowance by ₱${overAmount.toFixed(2)}`
+                : `${pct}% spent today`;
+
+            const alertBanner = document.getElementById('alertBanner');
+            if (isOverBudget) {
+                alertBanner.className = 'alert alert-danger';
+                alertBanner.innerHTML = `⚠️ <strong>Reminder:</strong> Your expenses are above the set allowance by ₱${overAmount.toFixed(2)}. Please reduce spending.`;
+                alertBanner.classList.remove('hidden');
+            } else if (pct >= 80) {
+                alertBanner.className = 'alert alert-warning';
+                alertBanner.innerHTML = `⚠️ <strong>Warning:</strong> You have reached ${pct}% of your daily allowance. Entering strict survival mode!`;
+                alertBanner.classList.remove('hidden');
+            } else {
+                alertBanner.classList.add('hidden');
+            }
+
+            // Populate Expense Table
+            const tbody = document.getElementById('expenseTableBody');
+            if (dbState.expenses.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No expenses recorded yet.</td></tr>`;
+            } else {
+                tbody.innerHTML = dbState.expenses.map(ex => `
+                    <tr>
+                        <td><strong>${ex.description}</strong><br><small style="color:var(--text-muted);">${ex.date}</small></td>
+                        <td>${ex.category}<br><span class="badge ${ex.type === 'Need' ? 'badge-need' : 'badge-want'}">${ex.type}</span></td>
+                        <td>₱${ex.amount.toFixed(2)}</td>
+                        <td>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button class="btn btn-alt" style="padding: 4px 8px; font-size: 0.75rem; width: auto;" onclick="editExpense(${ex.id})">Edit</button>
+                                <button class="btn btn-alt" style="padding: 4px 8px; font-size: 0.75rem; width: auto;" onclick="deleteExpense(${ex.id})">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Populate Goals
+            const goalsDiv = document.getElementById('goalsContainer');
+            if (dbState.goals.length === 0) {
+                goalsDiv.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">No savings goals created yet.</p>`;
+            } else {
+                goalsDiv.innerHTML = dbState.goals.map(g => {
+                    const gPct = Math.min(100, Math.round((g.saved / g.target) * 100));
+                    const isAchieved = g.saved >= g.target;
+                    return `
+                        <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px;">
+                            <div class="flex-between" style="margin-bottom: 6px;">
+                                <strong>${g.name}</strong>
+                                <span>₱${g.saved.toFixed(2)} / ₱${g.target.toFixed(2)} (${gPct}%)</span>
+                            </div>
+                            <div class="progress-container"><div class="progress-bar" style="width: ${gPct}%;"></div></div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                                <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="contributeGoal(${id=g.id}, 20)">+₱20</button>
+                                <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="contributeGoal(${id=g.id}, 50)">+₱50</button>
+                                <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="contributeGoal(${id=g.id}, 100)">+₱100</button>
+                                <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="editGoal(${g.id})">Edit</button>
+                                ${isAchieved ? `<button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto; background: var(--danger-soft); color: var(--danger); border-color: var(--danger);" onclick="deleteGoal(${g.id})">Delete</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function renderAnalytics() {
+            const filter = document.getElementById('reportFilter').value;
+            const now = new Date();
+            let cutoff = new Date();
+            if (filter === 'today') cutoff.setDate(now.getDate());
+            else if (filter === 'week') cutoff.setDate(now.getDate() - 7);
+            else if (filter === 'month') cutoff.setDate(now.getDate() - 30);
+
+            const cutoffStr = cutoff.toISOString().split('T')[0];
+            const filtered = dbState.expenses.filter(ex => ex.date >= cutoffStr);
+            const total = filtered.reduce((sum, ex) => sum + ex.amount, 0);
+            const needs = filtered.filter(ex => ex.type === 'Need').reduce((sum, ex) => sum + ex.amount, 0);
+            const wants = filtered.filter(ex => ex.type === 'Want').reduce((sum, ex) => sum + ex.amount, 0);
+
+            document.getElementById('reportTotalSpent').textContent = `₱${total.toFixed(2)}`;
+            document.getElementById('reportNeeds').textContent = `Needs: ₱${needs.toFixed(2)}`;
+            document.getElementById('reportWants').textContent = `Wants: ₱${wants.toFixed(2)}`;
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>

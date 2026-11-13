@@ -684,6 +684,7 @@
                 console.error('Failed to load dashboard data:', error.message);
                 dbState = getFreshDbState();
             }
+            updateDashboard();
         }
 
         function saveUserData() {

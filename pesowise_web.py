@@ -251,6 +251,30 @@ def api_reset_password():
     return jsonify({"message": "Password reset successful."}), 200
 
 
+@app.route("/api/account", methods=["DELETE"])
+def api_delete_account():
+    user = get_current_user()
+    if user is None:
+        return jsonify({"error": "Not authenticated."}), 401
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Current password is required to delete your account."}), 400
+    current_password = payload.get("currentPassword")
+    if not isinstance(current_password, str) or not current_password:
+        return jsonify({"error": "Current password is required to delete your account."}), 400
+    if not check_password_hash(user["password"], current_password):
+        return jsonify({"error": "Current password is incorrect."}), 401
+
+    with get_db() as db:
+        db.execute("DELETE FROM expenses WHERE user_id = ?", (user["id"],))
+        db.execute("DELETE FROM savings_goals WHERE user_id = ?", (user["id"],))
+        db.execute("DELETE FROM users WHERE id = ?", (user["id"],))
+
+    session.clear()
+    return jsonify({"message": "Your account and its data have been permanently deleted."}), 200
+
+
 @app.route("/api/dashboard", methods=["GET"])
 def api_dashboard():
     user = get_current_user()

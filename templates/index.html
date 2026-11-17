@@ -53,6 +53,7 @@
         .chart-wrap { min-height: 220px; display: flex; align-items: center; justify-content: center; }
         .chart-wrap svg { display: block; width: 100%; height: auto; overflow: visible; }
         #categoryChart svg { max-width: 220px; }
+        button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .chart-legend { display: grid; gap: 8px; margin-top: 12px; }
         .chart-legend-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.85rem; }
         .chart-legend-label { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-muted); }
@@ -66,6 +67,8 @@
         input:focus, select:focus { outline: none; border-color: var(--primary); }
         button.btn { background: var(--primary); color: #000; font-weight: 700; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 0.95rem; transition: 0.15s; }
         button.btn:hover { background: var(--primary-hover); color: #fff; }
+        button.btn-danger { background: var(--danger); color: #fff; }
+        button.btn.btn-danger:hover { background: #dc2626; color: #fff; }
         button.btn-alt { background: var(--surface-alt); color: var(--text); }
         button.btn-alt:hover { background: var(--border); }
         .password-field-wrap {
@@ -373,11 +376,14 @@
                 <div class="card">
                     <div class="card-title">
                         <span>Spending Reports</span>
-                        <select id="reportFilter" onchange="renderAnalytics()" style="width: 140px; margin-bottom: 0; padding: 6px;">
-                            <option value="today">Today</option>
-                            <option value="week" selected>Last 7 Days</option>
-                            <option value="month">Last 30 Days</option>
-                        </select>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button id="exportReportBtn" class="btn btn-alt" type="button" onclick="exportReportCsv()" disabled style="width: auto; padding: 6px 10px; white-space: nowrap;">Export CSV</button>
+                            <select id="reportFilter" onchange="renderAnalytics()" style="width: 140px; margin-bottom: 0; padding: 6px;">
+                                <option value="today">Today</option>
+                                <option value="week" selected>Last 7 Days</option>
+                                <option value="month">Last 30 Days</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="grid-2" style="margin-top: 16px;">
                         <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border);">
@@ -444,6 +450,23 @@
                     </form>
                     <button class="btn btn-alt" onclick="signOut()" style="margin-top: 16px;">Sign Out of Account</button>
                 </div>
+                <div class="card" style="border-color: var(--danger);">
+                    <div class="card-title">Delete Account</div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">Permanently delete your account, expenses, and savings goals. This action cannot be undone.</p>
+                    <form onsubmit="handleDeleteAccount(event)">
+                        <label for="deleteAccountPassword">Current Password</label>
+                        <div class="password-field-wrap">
+                            <input type="password" id="deleteAccountPassword" required autocomplete="current-password" placeholder="Enter your current password">
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('deleteAccountPassword')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                                    <circle cx="12" cy="12" r="2.7"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                        <button type="submit" class="btn btn-danger">Permanently Delete Account</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -475,10 +498,10 @@
             }
 
             const response = await fetch(path, options);
-            const data = await response.json().catch(() => ({}));
+            const data = await response.json().catch(() => null);
 
             if (!response.ok) {
-                throw new Error(data.error || 'Request failed.');
+                throw new Error((data && data.error) || `Request failed (${response.status} ${response.statusText}).`);
             }
 
             return data;
@@ -658,6 +681,31 @@
                 });
                 alert(data.message);
                 e.target.reset();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function handleDeleteAccount(e) {
+            e.preventDefault();
+            if (!currentUser) {
+                alert('You need to sign in before deleting your account.');
+                return;
+            }
+
+            if (!window.confirm(`Permanently delete ${currentUser.email} and all associated data? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const currentPassword = document.getElementById('deleteAccountPassword').value;
+                const data = await apiRequest('/api/account', 'DELETE', { currentPassword });
+                currentUser = null;
+                dbState = getFreshDbState();
+                localStorage.removeItem('pesowise_user');
+                e.target.reset();
+                showAuthScreen();
+                alert(data.message);
             } catch (error) {
                 alert(error.message);
             }
@@ -963,6 +1011,7 @@
         const CHART_COLORS = ['#10b981', '#60a5fa', '#f472b6', '#f59e0b', '#a78bfa', '#fb7185', '#22d3ee', '#a3e635', '#f97316', '#c084fc', '#2dd4bf', '#94a3b8'];
         const chartCurrency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
         const SVG_NS = 'http://www.w3.org/2000/svg';
+        let currentReportExpenses = [];
 
         function createSvgElement(tag, attributes = {}) {
             const element = document.createElementNS(SVG_NS, tag);
@@ -1128,6 +1177,7 @@
             const todayStr = toDateString(now);
             cutoff = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate());
             const filtered = dbState.expenses.filter(ex => ex.date >= cutoffStr && ex.date <= todayStr);
+            currentReportExpenses = filtered;
             const total = filtered.reduce((sum, ex) => sum + ex.amount, 0);
             const needs = filtered.filter(ex => ex.type === 'Need').reduce((sum, ex) => sum + ex.amount, 0);
             const wants = filtered.filter(ex => ex.type === 'Want').reduce((sum, ex) => sum + ex.amount, 0);
@@ -1135,8 +1185,46 @@
             document.getElementById('reportTotalSpent').textContent = `₱${total.toFixed(2)}`;
             document.getElementById('reportNeeds').textContent = `Needs: ₱${needs.toFixed(2)}`;
             document.getElementById('reportWants').textContent = `Wants: ₱${wants.toFixed(2)}`;
+            document.getElementById('exportReportBtn').disabled = filtered.length === 0;
             renderCategoryChart(filtered);
             renderDailySpendingChart(filtered, cutoff, new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+        }
+
+        function escapeCsvCell(value) {
+            const text = String(value ?? '');
+            const safeText = /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
+            return `"${safeText.replace(/"/g, '""')}"`;
+        }
+
+        function buildReportCsv(expenses) {
+            const rows = [
+                ['Date', 'Description', 'Category', 'Type', 'Amount (PHP)'],
+                ...expenses.map(expense => [
+                    expense.date,
+                    expense.description,
+                    expense.category,
+                    expense.type,
+                    Number(expense.amount).toFixed(2)
+                ])
+            ];
+            return '\uFEFF' + rows.map(row => row.map(escapeCsvCell).join(',')).join('\r\n') + '\r\n';
+        }
+
+        function exportReportCsv() {
+            if (currentReportExpenses.length === 0) return;
+
+            const filter = document.getElementById('reportFilter').value;
+            const today = new Date();
+            const dateSuffix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const blob = new Blob([buildReportCsv(currentReportExpenses)], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `pesowise-expenses-${filter}-${dateSuffix}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
         window.onload = initApp;

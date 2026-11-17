@@ -1,6 +1,6 @@
 import uuid
 
-from pesowise_web import app
+from pesowise_web import app, get_db
 
 
 def make_email(prefix):
@@ -187,3 +187,76 @@ def test_user_budget_data_persists_server_side_for_multi_device_access():
         assert payload['allowance'] == 500
         assert any(item['description'] == 'Jeepney fare' for item in payload['expenses'])
         assert any(item['name'] == 'Textbook' for item in payload['goals'])
+
+
+def test_account_deletion_requires_current_password_and_removes_user_data():
+    app.config['TESTING'] = True
+    app.config['WTF_CSRF_ENABLED'] = False
+
+    with app.test_client() as client:
+        unauthenticated_delete = client.delete(
+            '/api/account',
+            json={'currentPassword': 'StrongPass123!'},
+        )
+        assert unauthenticated_delete.status_code == 401
+
+        email = make_email('delete')
+        register = client.post(
+            '/api/register',
+            json={
+                'name': 'Delete User',
+                'email': email,
+                'password': 'StrongPass123!',
+                'confirmPassword': 'StrongPass123!',
+                'allowance': 300,
+            },
+        )
+        assert register.status_code == 201
+        user_id = register.get_json()['user']['id']
+
+        missing_password = client.delete('/api/account', json={})
+        assert missing_password.status_code == 400
+        malformed_payload = client.delete('/api/account', json=['not-a-password'])
+        assert malformed_payload.status_code == 400
+
+        expense = client.post(
+            '/api/expenses',
+            json={
+                'description': 'Lunch',
+                'amount': 50,
+                'category': 'Food',
+                'date': '2026-11-17',
+            },
+        )
+        assert expense.status_code == 201
+        goal = client.post(
+            '/api/goals',
+            json={'name': 'Books', 'target': 1000, 'saved': 100},
+        )
+        assert goal.status_code == 201
+
+        incorrect_password = client.delete(
+            '/api/account',
+            json={'currentPassword': 'WrongPass123!'},
+        )
+        assert incorrect_password.status_code == 401
+        dashboard = client.get('/api/dashboard')
+        assert dashboard.status_code == 200
+        assert len(dashboard.get_json()['expenses']) == 1
+        assert len(dashboard.get_json()['goals']) == 1
+
+        deleted = client.delete(
+            '/api/account',
+            json={'currentPassword': 'StrongPass123!'},
+        )
+        assert deleted.status_code == 200
+        assert client.get('/api/me').status_code == 401
+        assert client.post(
+            '/api/login',
+            json={'email': email, 'password': 'StrongPass123!'},
+        ).status_code == 401
+
+    with get_db() as db:
+        assert db.execute('SELECT id FROM users WHERE id = ?', (user_id,)).fetchone() is None
+        assert db.execute('SELECT id FROM expenses WHERE user_id = ?', (user_id,)).fetchone() is None
+        assert db.execute('SELECT id FROM savings_goals WHERE user_id = ?', (user_id,)).fetchone() is None

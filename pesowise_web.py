@@ -85,9 +85,22 @@ def init_db():
                 name TEXT NOT NULL,
                 target REAL NOT NULL CHECK (target > 0),
                 saved REAL NOT NULL DEFAULT 0,
+                deadline TEXT,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         """)
+        goal_columns = {row["name"] for row in db.execute("PRAGMA table_info(savings_goals)")}
+        if "deadline" not in goal_columns:
+            db.execute("ALTER TABLE savings_goals ADD COLUMN deadline TEXT")
+
+
+def is_valid_goal_deadline(deadline):
+    if not isinstance(deadline, str):
+        return False
+    try:
+        return date.fromisoformat(deadline).isoformat() == deadline
+    except ValueError:
+        return False
 
 
 def get_current_user():
@@ -120,6 +133,7 @@ def goal_to_dict(goal_row):
         "name": goal_row["name"],
         "target": float(goal_row["target"] or 0),
         "saved": float(goal_row["saved"] or 0),
+        "deadline": goal_row["deadline"],
     }
 
 
@@ -426,6 +440,7 @@ def api_manage_goals():
     name = (payload.get("name") or "").strip()
     target = float(payload.get("target") or 0)
     saved = float(payload.get("saved") or 0)
+    deadline = payload.get("deadline")
 
     if not name:
         return jsonify({"error": "Goal name is required."}), 400
@@ -435,11 +450,13 @@ def api_manage_goals():
         return jsonify({"error": "Saved amount cannot be negative."}), 400
     if saved > target:
         return jsonify({"error": "Saved amount cannot exceed the target."}), 400
+    if not is_valid_goal_deadline(deadline):
+        return jsonify({"error": "A valid deadline is required for savings goals."}), 400
 
     with get_db() as db:
         cursor = db.execute(
-            "INSERT INTO savings_goals (user_id, name, target, saved) VALUES (?, ?, ?, ?)",
-            (user["id"], name, target, saved),
+            "INSERT INTO savings_goals (user_id, name, target, saved, deadline) VALUES (?, ?, ?, ?, ?)",
+            (user["id"], name, target, saved, deadline),
         )
         created_id = cursor.lastrowid
         created_goal = db.execute(
@@ -480,6 +497,7 @@ def api_manage_goal(goal_id):
     name = (payload.get("name") or existing["name"]).strip()
     target = float(payload.get("target") or existing["target"])
     saved = float(payload.get("saved") or existing["saved"])
+    deadline = payload.get("deadline", existing["deadline"])
 
     if not name:
         return jsonify({"error": "Goal name is required."}), 400
@@ -489,11 +507,13 @@ def api_manage_goal(goal_id):
         return jsonify({"error": "Saved amount cannot be negative."}), 400
     if saved > target:
         return jsonify({"error": "Saved amount cannot exceed the target."}), 400
+    if not is_valid_goal_deadline(deadline):
+        return jsonify({"error": "A valid deadline is required for savings goals."}), 400
 
     with get_db() as db:
         db.execute(
-            "UPDATE savings_goals SET name = ?, target = ?, saved = ? WHERE id = ? AND user_id = ?",
-            (name, target, saved, goal_id, user["id"]),
+            "UPDATE savings_goals SET name = ?, target = ?, saved = ?, deadline = ? WHERE id = ? AND user_id = ?",
+            (name, target, saved, deadline, goal_id, user["id"]),
         )
         updated = db.execute(
             "SELECT * FROM savings_goals WHERE id = ? AND user_id = ?",

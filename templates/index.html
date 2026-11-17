@@ -132,7 +132,7 @@
     <!-- Top Header -->
     <header>
         <div class="logo">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span aria-hidden="true" style="font-size: 1.5rem; line-height: 1;">₱</span>
             PesoWise
         </div>
         <div id="headerUserSection" class="user-badge hidden">
@@ -265,6 +265,7 @@
             <!-- WINDOW 1: Overview & Survival -->
             <div id="win-overview" class="window-pane active">
                 <div id="alertBanner" class="hidden"></div>
+                <div id="goalDeadlineReminder" class="alert alert-warning hidden" role="status"></div>
 
                 <div class="card">
                     <div class="card-title">
@@ -359,6 +360,8 @@
                         <input type="text" id="goalName" required placeholder="e.g., New Arduino Kit, Textbook">
                         <label>Target Amount (₱)</label>
                         <input type="number" id="goalTarget" step="any" min="1" required placeholder="1000">
+                        <label>Deadline</label>
+                        <input type="date" id="goalDeadline" required>
                         <button type="submit" class="btn">Create Goal</button>
                     </form>
                 </div>
@@ -869,9 +872,10 @@
             e.preventDefault();
             const name = document.getElementById('goalName').value.trim();
             const target = parseFloat(document.getElementById('goalTarget').value);
+            const deadline = document.getElementById('goalDeadline').value;
 
             try {
-                await apiRequest('/api/goals', 'POST', { name, target, saved: 0 });
+                await apiRequest('/api/goals', 'POST', { name, target, saved: 0, deadline });
                 await loadUserData();
                 e.target.reset();
             } catch (error) {
@@ -901,11 +905,15 @@
                 return;
             }
 
+            const newDeadline = prompt('Edit deadline (YYYY-MM-DD):', goal.deadline || '');
+            if (newDeadline === null) return;
+
             try {
                 await apiRequest(`/api/goals/${id}`, 'PUT', {
                     name: newName.trim() || goal.name,
                     target: newTarget,
-                    saved: Math.min(goal.saved, newTarget)
+                    saved: Math.min(goal.saved, newTarget),
+                    deadline: newDeadline.trim()
                 });
                 await loadUserData();
             } catch (error) {
@@ -956,6 +964,23 @@
                 alertBanner.classList.add('hidden');
             }
 
+            const dueSoonGoals = dbState.goals
+                .filter(goal => goal.deadline && goal.saved < goal.target)
+                .map(goal => ({ goal, daysRemaining: getDaysRemaining(goal.deadline) }))
+                .filter(item => item.daysRemaining >= 0 && item.daysRemaining <= 3);
+            const goalReminder = document.getElementById('goalDeadlineReminder');
+            if (dueSoonGoals.length) {
+                const reminders = dueSoonGoals.map(({ goal, daysRemaining }) => {
+                    if (daysRemaining === 0) return `${goal.name} is due today`;
+                    return `${goal.name} is due in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`;
+                });
+                goalReminder.textContent = `Goal deadline reminder: ${reminders.join('; ')}.`;
+                goalReminder.classList.remove('hidden');
+            } else {
+                goalReminder.classList.add('hidden');
+                goalReminder.textContent = '';
+            }
+
             // Populate Expense Table
             const tbody = document.getElementById('expenseTableBody');
             if (dbState.expenses.length === 0) {
@@ -984,12 +1009,32 @@
                 goalsDiv.innerHTML = dbState.goals.map(g => {
                     const gPct = Math.min(100, Math.round((g.saved / g.target) * 100));
                     const isAchieved = g.saved >= g.target;
+                    const daysRemaining = g.deadline ? getDaysRemaining(g.deadline) : null;
+                    const deadlineText = !g.deadline
+                        ? 'No deadline set'
+                        : isAchieved
+                            ? `Achieved by ${formatGoalDeadline(g.deadline)}`
+                            : daysRemaining < 0
+                                ? `Overdue by ${Math.abs(daysRemaining)} day${daysRemaining === -1 ? '' : 's'}`
+                                : daysRemaining === 0
+                                    ? 'Due today'
+                                    : `Due ${formatGoalDeadline(g.deadline)} (${daysRemaining} day${daysRemaining === 1 ? '' : 's'} remaining)`;
+                    const deadlineColor = !g.deadline
+                        ? 'var(--text-muted)'
+                        : isAchieved
+                            ? 'var(--primary)'
+                            : daysRemaining < 0
+                                ? 'var(--danger)'
+                                : daysRemaining <= 3
+                                    ? 'var(--warning)'
+                                    : 'var(--text-muted)';
                     return `
                         <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px;">
                             <div class="flex-between" style="margin-bottom: 6px;">
                                 <strong>${g.name}</strong>
                                 <span>₱${g.saved.toFixed(2)} / ₱${g.target.toFixed(2)} (${gPct}%)</span>
                             </div>
+                            <p style="font-size: 0.85rem; color: ${deadlineColor}; margin-bottom: 8px;">${deadlineText}</p>
                             <div class="progress-container"><div class="progress-bar" style="width: ${gPct}%;"></div></div>
                             <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
                                 <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="contributeGoal(${id=g.id}, 20)">+₱20</button>
@@ -1006,6 +1051,23 @@
             if (document.getElementById('win-analytics').classList.contains('active')) {
                 renderAnalytics();
             }
+        }
+
+        function getDaysRemaining(deadline) {
+            const [year, month, day] = deadline.split('-').map(Number);
+            const deadlineDay = Date.UTC(year, month - 1, day);
+            const now = new Date();
+            const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+            return Math.round((deadlineDay - today) / 86400000);
+        }
+
+        function formatGoalDeadline(deadline) {
+            const [year, month, day] = deadline.split('-').map(Number);
+            return new Date(year, month - 1, day).toLocaleDateString('en-PH', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
         }
 
         const CHART_COLORS = ['#10b981', '#60a5fa', '#f472b6', '#f59e0b', '#a78bfa', '#fb7185', '#22d3ee', '#a3e635', '#f97316', '#c084fc', '#2dd4bf', '#94a3b8'];

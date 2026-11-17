@@ -162,7 +162,8 @@ def test_user_budget_data_persists_server_side_for_multi_device_access():
             json={
                 'name': 'Textbook',
                 'target': 1200,
-                'saved': 300
+                'saved': 300,
+                'deadline': '2026-12-01',
             },
         )
         assert goal.status_code == 201, goal.get_data(as_text=True)
@@ -173,6 +174,7 @@ def test_user_budget_data_persists_server_side_for_multi_device_access():
         assert payload['allowance'] == 500
         assert any(item['description'] == 'Jeepney fare' for item in payload['expenses'])
         assert any(item['name'] == 'Textbook' for item in payload['goals'])
+        assert next(item for item in payload['goals'] if item['name'] == 'Textbook')['deadline'] == '2026-12-01'
 
     with app.test_client() as client_two:
         login = client_two.post(
@@ -231,7 +233,7 @@ def test_account_deletion_requires_current_password_and_removes_user_data():
         assert expense.status_code == 201
         goal = client.post(
             '/api/goals',
-            json={'name': 'Books', 'target': 1000, 'saved': 100},
+            json={'name': 'Books', 'target': 1000, 'saved': 100, 'deadline': '2026-11-20'},
         )
         assert goal.status_code == 201
 
@@ -260,3 +262,58 @@ def test_account_deletion_requires_current_password_and_removes_user_data():
         assert db.execute('SELECT id FROM users WHERE id = ?', (user_id,)).fetchone() is None
         assert db.execute('SELECT id FROM expenses WHERE user_id = ?', (user_id,)).fetchone() is None
         assert db.execute('SELECT id FROM savings_goals WHERE user_id = ?', (user_id,)).fetchone() is None
+
+
+def test_savings_goals_require_valid_deadline_and_allow_deadline_updates():
+    app.config['TESTING'] = True
+    app.config['WTF_CSRF_ENABLED'] = False
+
+    with app.test_client() as client:
+        email = make_email('deadline')
+        register = client.post(
+            '/api/register',
+            json={
+                'name': 'Deadline User',
+                'email': email,
+                'password': 'StrongPass123!',
+                'confirmPassword': 'StrongPass123!',
+                'allowance': 300,
+            },
+        )
+        assert register.status_code == 201
+
+        missing_deadline = client.post(
+            '/api/goals',
+            json={'name': 'Books', 'target': 1000, 'saved': 100},
+        )
+        assert missing_deadline.status_code == 400
+        invalid_deadline = client.post(
+            '/api/goals',
+            json={'name': 'Books', 'target': 1000, 'saved': 100, 'deadline': '2026-02-30'},
+        )
+        assert invalid_deadline.status_code == 400
+
+        created = client.post(
+            '/api/goals',
+            json={
+                'name': 'Books',
+                'target': 1000,
+                'saved': 100,
+                'deadline': '2030-01-01',
+            },
+        )
+        assert created.status_code == 201
+        goal_id = created.get_json()['goal']['id']
+        assert created.get_json()['goal']['deadline'] == '2030-01-01'
+
+        updated = client.put(
+            f'/api/goals/{goal_id}',
+            json={
+                'name': 'Books',
+                'target': 1000,
+                'saved': 100,
+                'deadline': '2030-02-01',
+            },
+        )
+        assert updated.status_code == 200
+        assert updated.get_json()['goal']['deadline'] == '2030-02-01'

@@ -48,6 +48,17 @@
         .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         @media(max-width: 650px) { .grid-2 { grid-template-columns: 1fr; } }
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .chart-card { min-width: 0; }
+        .chart-wrap { min-height: 220px; display: flex; align-items: center; justify-content: center; }
+        .chart-wrap svg { display: block; width: 100%; height: auto; overflow: visible; }
+        #categoryChart svg { max-width: 220px; }
+        .chart-legend { display: grid; gap: 8px; margin-top: 12px; }
+        .chart-legend-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.85rem; }
+        .chart-legend-label { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-muted); }
+        .chart-legend-swatch { flex: 0 0 10px; height: 10px; border-radius: 50%; }
+        .chart-empty { color: var(--text-muted); font-size: 0.9rem; text-align: center; }
+        @media(max-width: 650px) { .chart-grid { grid-template-columns: 1fr; } }
 
         /* Forms & Inputs */
         label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -377,6 +388,17 @@
                             <p style="color: var(--text-muted); font-size: 0.8rem;">Needs vs Wants Split</p>
                             <p style="font-size: 0.95rem; margin-top: 4px;"><span id="reportNeeds" style="color: #60a5fa;">Needs: ₱0</span> | <span id="reportWants" style="color: #f472b6;">Wants: ₱0</span></p>
                         </div>
+                    </div>
+                </div>
+                <div class="chart-grid">
+                    <div class="card chart-card">
+                        <div class="card-title">Spending by Category</div>
+                        <div id="categoryChart" class="chart-wrap"></div>
+                        <div id="categoryChartLegend" class="chart-legend"></div>
+                    </div>
+                    <div class="card chart-card">
+                        <div class="card-title">Daily Spending</div>
+                        <div id="dailySpendingChart" class="chart-wrap"></div>
                     </div>
                 </div>
             </div>
@@ -932,6 +954,165 @@
                     `;
                 }).join('');
             }
+
+            if (document.getElementById('win-analytics').classList.contains('active')) {
+                renderAnalytics();
+            }
+        }
+
+        const CHART_COLORS = ['#10b981', '#60a5fa', '#f472b6', '#f59e0b', '#a78bfa', '#fb7185', '#22d3ee', '#a3e635', '#f97316', '#c084fc', '#2dd4bf', '#94a3b8'];
+        const chartCurrency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+
+        function createSvgElement(tag, attributes = {}) {
+            const element = document.createElementNS(SVG_NS, tag);
+            Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+            return element;
+        }
+
+        function showChartEmpty(container, message) {
+            container.replaceChildren();
+            const text = document.createElement('p');
+            text.className = 'chart-empty';
+            text.textContent = message;
+            container.appendChild(text);
+        }
+
+        function renderCategoryChart(expenses) {
+            const chart = document.getElementById('categoryChart');
+            const legend = document.getElementById('categoryChartLegend');
+            const totals = new Map();
+            expenses.forEach(expense => totals.set(expense.category, (totals.get(expense.category) || 0) + expense.amount));
+            const categories = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+            const total = categories.reduce((sum, [, amount]) => sum + amount, 0);
+            legend.replaceChildren();
+
+            if (total <= 0) {
+                showChartEmpty(chart, 'No spending in this period.');
+                return;
+            }
+
+            const svg = createSvgElement('svg', {
+                viewBox: '0 0 220 220',
+                role: 'img',
+                'aria-label': 'Pie chart of spending by category'
+            });
+            let startAngle = -Math.PI / 2;
+            categories.forEach(([category, amount], index) => {
+                const color = CHART_COLORS[index % CHART_COLORS.length];
+                const sliceAngle = amount / total * Math.PI * 2;
+                let slice;
+                if (categories.length === 1) {
+                    slice = createSvgElement('circle', { cx: 110, cy: 110, r: 100, fill: color });
+                } else {
+                    const endAngle = startAngle + sliceAngle;
+                    const startX = 110 + 100 * Math.cos(startAngle);
+                    const startY = 110 + 100 * Math.sin(startAngle);
+                    const endX = 110 + 100 * Math.cos(endAngle);
+                    const endY = 110 + 100 * Math.sin(endAngle);
+                    const largeArc = sliceAngle > Math.PI ? 1 : 0;
+                    const path = `M 110 110 L ${startX} ${startY} A 100 100 0 ${largeArc} 1 ${endX} ${endY} Z`;
+                    slice = createSvgElement('path', { d: path, fill: color, stroke: '#1e293b', 'stroke-width': 2 });
+                    startAngle = endAngle;
+                }
+                const title = createSvgElement('title');
+                title.textContent = `${category}: ${chartCurrency.format(amount)}`;
+                slice.appendChild(title);
+                svg.appendChild(slice);
+
+                const item = document.createElement('div');
+                item.className = 'chart-legend-item';
+                const label = document.createElement('span');
+                label.className = 'chart-legend-label';
+                const swatch = document.createElement('span');
+                swatch.className = 'chart-legend-swatch';
+                swatch.style.backgroundColor = color;
+                const categoryName = document.createElement('span');
+                categoryName.textContent = category;
+                label.append(swatch, categoryName);
+                const value = document.createElement('strong');
+                value.textContent = `${chartCurrency.format(amount)} (${Math.round(amount / total * 100)}%)`;
+                item.append(label, value);
+                legend.appendChild(item);
+            });
+            chart.replaceChildren(svg);
+        }
+
+        function renderDailySpendingChart(expenses, startDate, endDate) {
+            const chart = document.getElementById('dailySpendingChart');
+            const dailyTotals = new Map();
+            expenses.forEach(expense => dailyTotals.set(expense.date, (dailyTotals.get(expense.date) || 0) + expense.amount));
+            const dates = [];
+            for (const cursor = new Date(startDate); cursor <= endDate; cursor.setDate(cursor.getDate() + 1)) {
+                dates.push(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()));
+            }
+
+            const values = dates.map(date => {
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                return dailyTotals.get(key) || 0;
+            });
+            const maxValue = Math.max(...values, 0);
+            const chartMax = maxValue > 0 ? maxValue * 1.15 : 1;
+            const width = 640;
+            const height = 250;
+            const left = 54;
+            const right = 12;
+            const top = 14;
+            const bottom = 38;
+            const plotWidth = width - left - right;
+            const plotHeight = height - top - bottom;
+            const xFor = index => dates.length === 1 ? left + plotWidth / 2 : left + index / (dates.length - 1) * plotWidth;
+            const yFor = value => top + plotHeight - value / chartMax * plotHeight;
+            const svg = createSvgElement('svg', {
+                viewBox: `0 0 ${width} ${height}`,
+                role: 'img',
+                'aria-label': 'Line chart of daily spending'
+            });
+
+            for (let tick = 0; tick <= 4; tick += 1) {
+                const value = chartMax * tick / 4;
+                const y = yFor(value);
+                svg.appendChild(createSvgElement('line', {
+                    x1: left, y1: y, x2: width - right, y2: y,
+                    stroke: '#475569', 'stroke-dasharray': '3 4'
+                }));
+                const label = createSvgElement('text', {
+                    x: left - 8, y: y + 4, fill: '#94a3b8',
+                    'font-size': 11, 'text-anchor': 'end'
+                });
+                label.textContent = `₱${value.toFixed(chartMax < 10 ? 1 : 0)}`;
+                svg.appendChild(label);
+            }
+
+            const points = values.map((value, index) => `${xFor(index)},${yFor(value)}`).join(' ');
+            svg.appendChild(createSvgElement('polyline', {
+                points, fill: 'none', stroke: '#10b981',
+                'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+            }));
+
+            values.forEach((value, index) => {
+                const point = createSvgElement('circle', {
+                    cx: xFor(index), cy: yFor(value), r: dates.length > 14 ? 3 : 4,
+                    fill: '#10b981', stroke: '#1e293b', 'stroke-width': 2
+                });
+                const dateLabel = dates[index].toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+                const title = createSvgElement('title');
+                title.textContent = `${dateLabel}: ${chartCurrency.format(value)}`;
+                point.appendChild(title);
+                svg.appendChild(point);
+            });
+
+            const labelStep = Math.max(1, Math.ceil(dates.length / 7));
+            dates.forEach((date, index) => {
+                if (index % labelStep !== 0 && index !== dates.length - 1) return;
+                const label = createSvgElement('text', {
+                    x: xFor(index), y: height - 8, fill: '#94a3b8',
+                    'font-size': 11, 'text-anchor': 'middle'
+                });
+                label.textContent = date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+                svg.appendChild(label);
+            });
+            chart.replaceChildren(svg);
         }
 
         function renderAnalytics() {
@@ -939,11 +1120,14 @@
             const now = new Date();
             let cutoff = new Date();
             if (filter === 'today') cutoff.setDate(now.getDate());
-            else if (filter === 'week') cutoff.setDate(now.getDate() - 7);
-            else if (filter === 'month') cutoff.setDate(now.getDate() - 30);
+            else if (filter === 'week') cutoff.setDate(now.getDate() - 6);
+            else if (filter === 'month') cutoff.setDate(now.getDate() - 29);
 
-            const cutoffStr = cutoff.toISOString().split('T')[0];
-            const filtered = dbState.expenses.filter(ex => ex.date >= cutoffStr);
+            const toDateString = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const cutoffStr = toDateString(cutoff);
+            const todayStr = toDateString(now);
+            cutoff = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate());
+            const filtered = dbState.expenses.filter(ex => ex.date >= cutoffStr && ex.date <= todayStr);
             const total = filtered.reduce((sum, ex) => sum + ex.amount, 0);
             const needs = filtered.filter(ex => ex.type === 'Need').reduce((sum, ex) => sum + ex.amount, 0);
             const wants = filtered.filter(ex => ex.type === 'Want').reduce((sum, ex) => sum + ex.amount, 0);
@@ -951,6 +1135,8 @@
             document.getElementById('reportTotalSpent').textContent = `₱${total.toFixed(2)}`;
             document.getElementById('reportNeeds').textContent = `Needs: ₱${needs.toFixed(2)}`;
             document.getElementById('reportWants').textContent = `Wants: ₱${wants.toFixed(2)}`;
+            renderCategoryChart(filtered);
+            renderDailySpendingChart(filtered, cutoff, new Date(now.getFullYear(), now.getMonth(), now.getDate()));
         }
 
         window.onload = initApp;

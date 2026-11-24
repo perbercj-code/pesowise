@@ -53,6 +53,7 @@
         .chart-wrap { min-height: 220px; display: flex; align-items: center; justify-content: center; }
         .chart-wrap svg { display: block; width: 100%; height: auto; overflow: visible; }
         #categoryChart svg { max-width: 220px; }
+        #insightsCategoryChart svg { max-width: 220px; }
         button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .chart-legend { display: grid; gap: 8px; margin-top: 12px; }
         .chart-legend-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.85rem; }
@@ -60,6 +61,41 @@
         .chart-legend-swatch { flex: 0 0 10px; height: 10px; border-radius: 50%; }
         .chart-empty { color: var(--text-muted); font-size: 0.9rem; text-align: center; }
         @media(max-width: 650px) { .chart-grid { grid-template-columns: 1fr; } }
+        .insights-period-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 18px 0; }
+        .insight-period-btn { min-height: 68px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text-muted); font-weight: 700; cursor: pointer; }
+        .insight-period-btn:hover, .insight-period-btn.active { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+        .insights-stat { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+        .insights-stat-label { color: var(--text-muted); font-size: 0.8rem; }
+        .insights-stat-value { margin-top: 5px; font-size: 1.5rem; overflow-wrap: anywhere; }
+        .insights-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .insights-actions .btn { flex: 1 1 150px; width: auto; }
+        .insights-progress { height: 12px; margin: 10px 0; overflow: hidden; border: 1px solid var(--border); border-radius: 99px; background: var(--bg); }
+        .insights-progress > div { height: 100%; width: 0; background: var(--primary); transition: width 0.25s ease; }
+        .insights-table-wrap { max-height: 360px; overflow: auto; }
+        #win-expenses .expense-history-table-wrap { max-height: 400px; overflow-y: auto; }
+        @media(max-width: 420px) { .insight-period-btn { font-size: 0.78rem; padding: 8px 4px; } }
+        @media(max-width: 650px) {
+            #win-expenses .grid-2 > .card { min-width: 0; }
+            #win-expenses .expense-history-table-wrap { max-height: none; overflow: visible; }
+            #win-expenses table { display: block; width: 100%; margin-top: 0; }
+            #win-expenses table thead { display: none; }
+            #win-expenses table tbody { display: grid; gap: 10px; }
+            #win-expenses table tbody tr {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: start;
+                gap: 6px 10px;
+                padding: 10px;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                background: var(--bg);
+            }
+            #win-expenses table tbody td { min-width: 0; padding: 2px 0; border: 0; overflow-wrap: anywhere; }
+            #win-expenses table tbody td:first-child { grid-column: 1 / -1; }
+            #win-expenses table tbody td:nth-child(2) { grid-column: 1; }
+            #win-expenses table tbody td:nth-child(3) { grid-column: 2; text-align: right; white-space: nowrap; }
+            #win-expenses table tbody td:nth-child(4) { grid-column: 1 / -1; }
+        }
 
         /* Forms & Inputs */
         label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -108,6 +144,26 @@
         .alert { padding: 14px; border-radius: 8px; margin-bottom: 16px; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
         .alert-danger { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger); }
         .alert-warning { background: var(--warning-soft); color: var(--warning); border: 1px solid var(--warning); }
+        .alert-success { background: var(--primary-soft); color: var(--primary); border: 1px solid var(--primary); }
+        .toast-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; display: grid; gap: 10px; width: min(390px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; }
+        .app-toast { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 10px; color: var(--text); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3); animation: fadeIn 0.2s ease-out; }
+        .app-toast-error { border-left-color: var(--danger); }
+        .app-toast-warning { border-left-color: var(--warning); }
+        .app-toast-success { border-left-color: var(--primary); }
+        .app-toast-message { line-height: 1.45; overflow-wrap: anywhere; }
+        .app-toast-dismiss { flex: 0 0 auto; border: 0; background: transparent; color: var(--text-muted); font-size: 1rem; font-weight: 700; cursor: pointer; padding: 0 2px; }
+        .app-toast-dismiss:hover { color: var(--text); }
+        .app-dialog { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100vw - 32px)); max-width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); }
+        .app-dialog::backdrop { background: rgba(2, 6, 23, 0.72); backdrop-filter: blur(3px); }
+        .app-dialog-form { padding: 22px; }
+        .app-dialog-title { margin-bottom: 8px; font-size: 1.15rem; }
+        .app-dialog-message { margin-bottom: 16px; color: var(--text-muted); line-height: 1.5; }
+        .app-dialog-field { margin-bottom: 14px; }
+        .app-dialog-field label { margin-bottom: 6px; }
+        .app-dialog-field input, .app-dialog-field select { margin-bottom: 0; }
+        .app-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+        .app-dialog-actions .btn { width: auto; min-width: 100px; }
+        @media(max-width: 650px) { .app-dialog-form { padding: 18px; } }
         .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
         .badge-need { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
         .badge-want { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
@@ -142,13 +198,26 @@
         </div>
     </header>
 
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-relevant="additions text"></div>
+    <dialog id="appDialog" class="app-dialog" aria-labelledby="appDialogTitle" aria-describedby="appDialogMessage">
+        <form id="appDialogForm" class="app-dialog-form">
+            <h2 id="appDialogTitle" class="app-dialog-title"></h2>
+            <p id="appDialogMessage" class="app-dialog-message hidden"></p>
+            <div id="appDialogFields"></div>
+            <div class="app-dialog-actions">
+                <button id="appDialogCancel" type="button" class="btn btn-alt">Cancel</button>
+                <button id="appDialogConfirm" type="submit" class="btn">Continue</button>
+            </div>
+        </form>
+    </dialog>
+
     <!-- Authentication Window (Shown when signed out) -->
     <div id="authScreen" class="container" style="max-width: 440px; margin-top: 40px;">
         <div class="card">
             <h2 style="margin-bottom: 6px; text-align: center;">Welcome to PesoWise</h2>
             <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Student Budget & Survival Mode Tracker</p>
             
-            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <div id="authTabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
                 <button class="btn" id="tabLoginBtn" onclick="switchAuthTab('login')">Sign In</button>
                 <button class="btn btn-alt" id="tabRegisterBtn" onclick="switchAuthTab('register')">Create Account</button>
             </div>
@@ -174,23 +243,25 @@
             </form>
 
             <!-- Reset Password Form -->
-            <form id="resetPasswordForm" class="hidden" onsubmit="handleResetPassword(event)">
+            <form id="resetPasswordForm" class="hidden" onsubmit="handleRequestPasswordReset(event)">
                 <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 12px;">
                     <h3 style="margin:0; font-size: 1rem;">Reset Password</h3>
                     <button type="button" class="btn btn-alt" style="width:auto; padding: 6px 10px; font-size:0.75rem;" onclick="showLoginForm()">Back</button>
                 </div>
                 <label>Email</label>
-                <input type="email" id="resetEmail" required placeholder="juan@lspu.edu.ph">
-                <label>Current Password</label>
-                <div class="password-field-wrap">
-                    <input type="password" id="resetCurrentPass" required placeholder="••••••••">
-                    <button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePasswordVisibility('resetCurrentPass')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M2.5 12s3.25-6.5 9.5-6.5S21.5 12 21.5 12 18.25 18.5 12 18.5 2.5 12 2.5 12z"></path>
-                            <circle cx="12" cy="12" r="2.7"></circle>
-                        </svg>
-                    </button>
-                </div>
+                <input type="email" id="resetEmail" required autocomplete="email" placeholder="Email used to create your account">
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 14px;">Enter the same email address you used to create your PesoWise account. The reset code is only sent to an address registered to an account.</p>
+                <button type="submit" class="btn">Send Verification Code</button>
+            </form>
+
+            <form id="resetPasswordVerifyForm" class="hidden" onsubmit="handleResetPassword(event)">
+                <h3 style="margin-bottom: 8px; font-size: 1rem;">Verify and reset password</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 14px;">
+                    Enter the 6-digit code sent to <strong id="resetVerificationEmail"></strong>. If no code arrives, check that this is the same email you used to sign up. Codes expire in 10 minutes.
+                </p>
+                <label for="resetVerificationCode">Verification Code</label>
+                <input type="text" id="resetVerificationCode" required inputmode="numeric"
+                       autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456">
                 <label>New Password</label>
                 <div class="password-field-wrap">
                     <input type="password" id="resetNewPass" required placeholder="••••••••">
@@ -211,15 +282,17 @@
                         </svg>
                     </button>
                 </div>
-                <button type="submit" class="btn">Reset Password</button>
+                <button type="submit" class="btn">Verify Code & Reset Password</button>
+                <button type="button" class="btn btn-alt" style="margin-top: 8px;" onclick="handleResendPasswordResetCode()">Send another code</button>
+                <button type="button" class="btn btn-alt" style="margin-top: 8px;" onclick="returnToResetEmailForm()">Back</button>
             </form>
 
             <!-- Register Form -->
             <form id="registerForm" class="hidden" onsubmit="handleRegister(event)">
                 <label>Full Name</label>
                 <input type="text" id="regName" required placeholder="Juan Dela Cruz">
-                <label>Student Email / Username</label>
-                <input type="email" id="regEmail" required placeholder="juan@lspu.edu.ph">
+                <label>Gmail Address</label>
+                <input type="email" id="regEmail" required placeholder="you@gmail.com" autocomplete="email">
                 <label>Password</label>
                 <div class="password-field-wrap">
                     <input type="password" id="regPass" required placeholder="••••••••">
@@ -242,7 +315,22 @@
                 </div>
                 <label>Initial Daily Allowance (₱)</label>
                 <input type="number" id="regAllowance" step="any" min="0" value="300" required>
-                <button type="submit" class="btn">Create Account & Sign In</button>
+                <button type="submit" class="btn">Send Verification Code</button>
+            </form>
+
+            <form id="verifyEmailForm" class="hidden" onsubmit="handleVerifyEmail(event)">
+                <h3 style="margin-bottom: 8px;">Verify your Gmail</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+                    If <strong id="verificationEmail"></strong> can receive email, enter the 6-digit code it receives.
+                    The code expires in 10 minutes.
+                </p>
+                <label for="verificationCode">Verification Code</label>
+                <input type="text" id="verificationCode" required inputmode="numeric"
+                       autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"
+                       placeholder="123456">
+                <button type="submit" class="btn">Verify & Create Account</button>
+                <button type="button" class="btn btn-alt" style="margin-top: 8px;"
+                        onclick="returnToRegistration()">Back to registration</button>
             </form>
 
         </div>
@@ -253,11 +341,12 @@
         <!-- Multi-Window Navigation Bar -->
         <nav class="window-nav-bar">
             <div class="window-tabs container" style="margin: 0 auto; padding: 0;">
-                <button class="win-tab active" onclick="switchWindow('overview')">Overview & Survival</button>
-                <button class="win-tab" onclick="switchWindow('expenses')">Log & Expenses</button>
-                <button class="win-tab" onclick="switchWindow('savings')">Savings Vault</button>
-                <button class="win-tab" onclick="switchWindow('analytics')">Analytics Reports</button>
-                <button class="win-tab" onclick="switchWindow('account')">Account</button>
+                <button class="win-tab active" data-window="overview" onclick="switchWindow('overview')">Overview & Survival</button>
+                <button class="win-tab" data-window="expenses" onclick="switchWindow('expenses')">Log & Expenses</button>
+                <button class="win-tab" data-window="savings" onclick="switchWindow('savings')">Savings Vault</button>
+                <button class="win-tab" data-window="analytics" onclick="switchWindow('analytics')">Analytics Reports</button>
+                <button class="win-tab" data-window="insights" onclick="switchWindow('insights')">Smart Insights</button>
+                <button class="win-tab" data-window="account" onclick="switchWindow('account')">Account</button>
             </div>
         </nav>
 
@@ -337,7 +426,7 @@
 
                     <div class="card">
                         <div class="card-title">Expense History</div>
-                        <div style="max-height: 400px; overflow-y: auto;">
+                        <div class="expense-history-table-wrap">
                             <table>
                                 <thead>
                                     <tr><th>Description</th><th>Category</th><th>Amount</th><th></th></tr>
@@ -412,7 +501,101 @@
                 </div>
             </div>
 
-            <!-- WINDOW 5: Account -->
+            <!-- WINDOW 5: Smart Spending Insights -->
+            <div id="win-insights" class="window-pane">
+                <div class="card">
+                    <div class="flex-between" style="gap: 12px; align-items: flex-start;">
+                        <div>
+                            <p style="color: var(--primary); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;">PesoWise · Smart Insights</p>
+                            <h2 style="margin-top: 6px;">Smart Spending Insights</h2>
+                            <p style="margin-top: 6px; color: var(--text-muted); font-size: 0.9rem;">Understand your spending habits and discover ways to save more money.</p>
+                        </div>
+                    </div>
+                    <div class="insights-period-tabs" role="group" aria-label="Select report period">
+                        <button type="button" class="insight-period-btn active" data-insight-period="weekly" aria-pressed="true" onclick="selectInsightsPeriod('weekly')">Weekly Report</button>
+                        <button type="button" class="insight-period-btn" data-insight-period="monthly" aria-pressed="false" onclick="selectInsightsPeriod('monthly')">Monthly Report</button>
+                        <button type="button" class="insight-period-btn" data-insight-period="yearly" aria-pressed="false" onclick="selectInsightsPeriod('yearly')">Yearly Report</button>
+                    </div>
+                    <h3 id="insightsReportHeading">Weekly Spending Report</h3>
+                    <p id="insightsPeriodRange" style="margin-top: 5px; color: var(--text-muted); font-size: 0.85rem;"></p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Your Spending Summary</div>
+                    <p id="insightsSummaryPeriod" style="margin-bottom: 8px; color: var(--text-muted); font-size: 0.85rem;"></p>
+                    <div class="insights-stat">
+                        <p class="insights-stat-label">Total Expenses</p>
+                        <h2 id="insightsTotalExpenses" class="insights-stat-value">₱0.00</h2>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="card-title">Expense Breakdown</div>
+                    <div id="insightsCategoryChart" class="chart-wrap"></div>
+                    <div id="insightsCategoryLegend" class="chart-legend"></div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">Spending Analysis</div>
+                        <p id="insightsAnalysis" style="color: var(--text-muted); line-height: 1.55;"></p>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Highest Spending Category</div>
+                        <p id="insightsHighestCategory" style="color: var(--text-muted); line-height: 1.55;"></p>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">Suggestions to Save</div>
+                        <ul id="insightsSuggestions" style="padding-left: 20px; color: var(--text-muted); line-height: 1.6;"></ul>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Potential Savings</div>
+                        <h2 id="insightsPotentialSavings" style="color: var(--primary);">₱0.00</h2>
+                        <p id="insightsPotentialSavingsNote" style="margin-top: 6px; color: var(--text-muted); font-size: 0.85rem;"></p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Savings Progress</div>
+                    <div class="flex-between" style="gap: 12px;">
+                        <strong id="insightsSavingsAmount">₱0.00 saved</strong>
+                        <span id="insightsSavingsPercent" style="color: var(--text-muted);">0%</span>
+                    </div>
+                    <div id="insightsSavingsProgress" class="insights-progress" role="progressbar" aria-label="Savings goals progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <div id="insightsSavingsBar"></div>
+                    </div>
+                    <p id="insightsSavingsNote" style="color: var(--text-muted); font-size: 0.85rem;"></p>
+                </div>
+
+                <div id="insightsComparison" class="card hidden" aria-live="polite">
+                    <div class="card-title">Compare Previous Period</div>
+                    <p id="insightsComparisonText" style="color: var(--text-muted); line-height: 1.55;"></p>
+                </div>
+
+                <div id="insightsExpenseDetails" class="card hidden">
+                    <div class="card-title">View Expense Details</div>
+                    <div class="insights-table-wrap">
+                        <table>
+                            <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th></tr></thead>
+                            <tbody id="insightsExpenseRows"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="insights-actions">
+                        <button id="insightsDetailsButton" type="button" class="btn btn-alt" onclick="toggleInsightsExpenseDetails()">View Expense Details</button>
+                        <button id="insightsCompareButton" type="button" class="btn btn-alt" aria-expanded="false" onclick="toggleInsightsComparison()">Compare Previous Period</button>
+                        <button type="button" class="btn btn-alt" onclick="downloadSmartInsightsReport()">Download Report</button>
+                        <button type="button" class="btn" onclick="switchWindow('overview')">Back to Dashboard</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WINDOW 6: Account -->
             <div id="win-account" class="window-pane">
                 <div class="card">
                     <div class="card-title">Student Account Profile</div>
@@ -481,6 +664,8 @@
         const ALL_CATEGORIES = [...new Set([...NEED_CATEGORIES, ...WANT_CATEGORIES])].sort();
         
         let currentUser = null;
+        let pendingVerificationEmail = '';
+        let pendingPasswordResetEmail = '';
         let dbState = {
             allowance: 300,
             expenses: [],
@@ -531,17 +716,25 @@
         function showLoginForm() {
             document.getElementById('loginForm').classList.remove('hidden');
             document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('verifyEmailForm').classList.add('hidden');
             document.getElementById('resetPasswordForm').classList.add('hidden');
+            document.getElementById('resetPasswordVerifyForm').classList.add('hidden');
+            document.getElementById('authTabs').classList.remove('hidden');
             document.getElementById('tabLoginBtn').classList.remove('btn-alt');
             document.getElementById('tabRegisterBtn').classList.add('btn-alt');
+            pendingPasswordResetEmail = '';
         }
 
         function showResetForm() {
             document.getElementById('loginForm').classList.add('hidden');
             document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('verifyEmailForm').classList.add('hidden');
+            document.getElementById('resetPasswordVerifyForm').classList.add('hidden');
             document.getElementById('resetPasswordForm').classList.remove('hidden');
+            document.getElementById('authTabs').classList.remove('hidden');
             document.getElementById('tabLoginBtn').classList.add('btn-alt');
             document.getElementById('tabRegisterBtn').classList.add('btn-alt');
+            pendingPasswordResetEmail = '';
         }
 
         function switchAuthTab(tab) {
@@ -550,10 +743,161 @@
             } else {
                 document.getElementById('loginForm').classList.add('hidden');
                 document.getElementById('registerForm').classList.remove('hidden');
+                document.getElementById('verifyEmailForm').classList.add('hidden');
                 document.getElementById('resetPasswordForm').classList.add('hidden');
+                document.getElementById('resetPasswordVerifyForm').classList.add('hidden');
+                pendingPasswordResetEmail = '';
+                document.getElementById('authTabs').classList.remove('hidden');
                 document.getElementById('tabRegisterBtn').classList.remove('btn-alt');
                 document.getElementById('tabLoginBtn').classList.add('btn-alt');
             }
+        }
+
+        function showVerificationForm(email) {
+            pendingVerificationEmail = email;
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('resetPasswordForm').classList.add('hidden');
+            document.getElementById('resetPasswordVerifyForm').classList.add('hidden');
+            document.getElementById('verifyEmailForm').classList.remove('hidden');
+            document.getElementById('authTabs').classList.add('hidden');
+            document.getElementById('verificationEmail').textContent = email;
+            document.getElementById('verificationCode').value = '';
+            document.getElementById('verificationCode').focus();
+        }
+
+        function returnToRegistration() {
+            pendingVerificationEmail = '';
+            document.getElementById('verifyEmailForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+            document.getElementById('authTabs').classList.remove('hidden');
+        }
+
+        function showPasswordResetVerificationForm(email) {
+            pendingPasswordResetEmail = email;
+            document.getElementById('resetPasswordForm').classList.add('hidden');
+            document.getElementById('resetPasswordVerifyForm').classList.remove('hidden');
+            document.getElementById('resetVerificationEmail').textContent = email;
+            document.getElementById('resetVerificationCode').value = '';
+            document.getElementById('authTabs').classList.add('hidden');
+            document.getElementById('resetVerificationCode').focus();
+        }
+
+        function returnToResetEmailForm() {
+            document.getElementById('resetPasswordVerifyForm').classList.add('hidden');
+            document.getElementById('resetPasswordForm').classList.remove('hidden');
+            document.getElementById('resetEmail').value = pendingPasswordResetEmail;
+            document.getElementById('authTabs').classList.remove('hidden');
+        }
+
+        function showAuthMessage(message, type) {
+            showToast(message, type);
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const text = document.createElement('span');
+            const dismiss = document.createElement('button');
+            let timer;
+
+            toast.className = `app-toast app-toast-${type}`;
+            toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+            text.className = 'app-toast-message';
+            text.textContent = message;
+            dismiss.className = 'app-toast-dismiss';
+            dismiss.type = 'button';
+            dismiss.textContent = '×';
+            dismiss.setAttribute('aria-label', 'Dismiss notification');
+            dismiss.addEventListener('click', () => {
+                window.clearTimeout(timer);
+                toast.remove();
+            });
+
+            toast.append(text, dismiss);
+            container.appendChild(toast);
+            timer = window.setTimeout(() => toast.remove(), 6000);
+        }
+
+        function showAppDialog(options) {
+            const dialog = document.getElementById('appDialog');
+            if (dialog.open) return Promise.resolve(null);
+
+            const form = document.getElementById('appDialogForm');
+            const title = document.getElementById('appDialogTitle');
+            const message = document.getElementById('appDialogMessage');
+            const fieldsContainer = document.getElementById('appDialogFields');
+            const cancelButton = document.getElementById('appDialogCancel');
+            const confirmButton = document.getElementById('appDialogConfirm');
+            const fields = options.fields || [];
+            const controls = [];
+
+            title.textContent = options.title;
+            message.textContent = options.message || '';
+            message.classList.toggle('hidden', !options.message);
+            fieldsContainer.replaceChildren();
+            cancelButton.textContent = options.cancelLabel || 'Cancel';
+            confirmButton.textContent = options.confirmLabel || 'Save';
+            confirmButton.classList.toggle('btn-danger', Boolean(options.danger));
+
+            fields.forEach((field, index) => {
+                const wrapper = document.createElement('div');
+                const label = document.createElement('label');
+                const id = `appDialogField${index}`;
+                const control = field.type === 'select'
+                    ? document.createElement('select')
+                    : document.createElement('input');
+
+                wrapper.className = 'app-dialog-field';
+                label.htmlFor = id;
+                label.textContent = field.label;
+                control.id = id;
+                if (field.type === 'select') {
+                    field.options.forEach(optionValue => {
+                        const option = document.createElement('option');
+                        option.value = optionValue;
+                        option.textContent = optionValue;
+                        control.appendChild(option);
+                    });
+                } else {
+                    control.type = field.type || 'text';
+                }
+                control.value = field.value === undefined ? '' : field.value;
+                control.required = field.required !== false;
+                if (field.min !== undefined) control.min = field.min;
+                if (field.max !== undefined) control.max = field.max;
+                if (field.step !== undefined) control.step = field.step;
+
+                wrapper.append(label, control);
+                fieldsContainer.appendChild(wrapper);
+                controls.push(control);
+            });
+
+            return new Promise(resolve => {
+                let resolved = false;
+                const handleCancel = event => {
+                    event.preventDefault();
+                    finish(null);
+                };
+                const finish = result => {
+                    if (resolved) return;
+                    resolved = true;
+                    dialog.removeEventListener('cancel', handleCancel);
+                    dialog.close();
+                    resolve(result);
+                };
+
+                cancelButton.onclick = () => finish(null);
+                form.onsubmit = event => {
+                    event.preventDefault();
+                    finish(controls.map(control => control.value));
+                };
+                dialog.addEventListener('cancel', handleCancel);
+
+                dialog.showModal();
+                if (controls.length) controls[0].focus();
+                else cancelButton.focus();
+            });
         }
 
         function getFreshDbState(allowance = 300) {
@@ -598,7 +942,7 @@
                 await loadUserData();
                 showMainApp();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -611,7 +955,7 @@
             const allowance = parseFloat(document.getElementById('regAllowance').value) || 300;
 
             if (password !== confirmPassword) {
-                alert('Passwords do not match. Please confirm your password.');
+                showAuthMessage('Passwords do not match. Please confirm your password.', 'error');
                 return;
             }
 
@@ -623,46 +967,89 @@
                     confirmPassword,
                     allowance
                 });
+                showVerificationForm(email);
+                showAuthMessage(data.message, 'success');
+            } catch (error) {
+                showAuthMessage(error.message, 'error');
+            }
+        }
+
+        async function handleVerifyEmail(e) {
+            e.preventDefault();
+            const code = document.getElementById('verificationCode').value.trim();
+            try {
+                const data = await apiRequest('/api/verify-email', 'POST', {
+                    email: pendingVerificationEmail,
+                    code
+                });
                 currentUser = data.user;
+                pendingVerificationEmail = '';
                 localStorage.setItem('pesowise_user', JSON.stringify(currentUser));
                 await loadUserData();
                 showMainApp();
             } catch (error) {
-                alert(error.message);
+                showAuthMessage(error.message, 'error');
+            }
+        }
+
+        async function handleRequestPasswordReset(e) {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value.trim();
+            try {
+                const data = await apiRequest('/api/request-password-reset', 'POST', { email });
+                showPasswordResetVerificationForm(email);
+                showToast(data.message, 'info');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function handleResendPasswordResetCode() {
+            if (!pendingPasswordResetEmail) return;
+            try {
+                const data = await apiRequest('/api/request-password-reset', 'POST', {
+                    email: pendingPasswordResetEmail
+                });
+                document.getElementById('resetVerificationCode').value = '';
+                showToast(data.message, 'info');
+            } catch (error) {
+                showToast(error.message, 'error');
             }
         }
 
         async function handleResetPassword(e) {
             e.preventDefault();
-            const email = document.getElementById('resetEmail').value.trim();
-            const currentPassword = document.getElementById('resetCurrentPass').value;
+            const email = pendingPasswordResetEmail;
+            const code = document.getElementById('resetVerificationCode').value.trim();
             const newPassword = document.getElementById('resetNewPass').value;
             const confirmPassword = document.getElementById('resetConfirmPass').value;
 
             if (newPassword !== confirmPassword) {
-                alert('Passwords do not match.');
+                showToast('Passwords do not match.', 'error');
                 return;
             }
 
             try {
                 const data = await apiRequest('/api/reset-password', 'POST', {
                     email,
-                    currentPassword,
+                    code,
                     newPassword,
                     confirmPassword
                 });
-                alert(data.message);
+                showToast(data.message, 'success');
+                document.getElementById('resetPasswordVerifyForm').reset();
+                document.getElementById('resetPasswordForm').reset();
                 showLoginForm();
                 document.getElementById('loginEmail').value = email;
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
         async function handleChangePassword(e) {
             e.preventDefault();
             if (!currentUser) {
-                alert('You need to sign in before changing your password.');
+                showToast('You need to sign in before changing your password.', 'error');
                 return;
             }
 
@@ -671,32 +1058,37 @@
             const confirmPassword = document.getElementById('confirmNewPassword').value;
 
             if (newPassword !== confirmPassword) {
-                alert('New passwords do not match.');
+                showToast('New passwords do not match.', 'error');
                 return;
             }
 
             try {
-                const data = await apiRequest('/api/reset-password', 'POST', {
-                    email: currentUser.email,
+                const data = await apiRequest('/api/change-password', 'POST', {
                     currentPassword,
                     newPassword,
                     confirmPassword
                 });
-                alert(data.message);
+                showToast(data.message, 'success');
                 e.target.reset();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
         async function handleDeleteAccount(e) {
             e.preventDefault();
             if (!currentUser) {
-                alert('You need to sign in before deleting your account.');
+                showToast('You need to sign in before deleting your account.', 'error');
                 return;
             }
 
-            if (!window.confirm(`Permanently delete ${currentUser.email} and all associated data? This cannot be undone.`)) {
+            const confirmed = await showAppDialog({
+                title: 'Delete your account?',
+                message: `Permanently delete ${currentUser.email} and all associated data? This cannot be undone.`,
+                confirmLabel: 'Delete Account',
+                danger: true
+            });
+            if (confirmed === null) {
                 return;
             }
 
@@ -708,9 +1100,9 @@
                 localStorage.removeItem('pesowise_user');
                 e.target.reset();
                 showAuthScreen();
-                alert(data.message);
+                showToast(data.message, 'success');
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -768,8 +1160,10 @@
             document.querySelectorAll('.window-pane').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.win-tab').forEach(t => t.classList.remove('active'));
             document.getElementById('win-' + windowName).classList.add('active');
-            event.currentTarget.classList.add('active');
+            const activeTab = document.querySelector(`.win-tab[data-window="${windowName}"]`);
+            if (activeTab) activeTab.classList.add('active');
             if (windowName === 'analytics') renderAnalytics();
+            if (windowName === 'insights') renderSmartInsights();
         }
 
         function previewCategoryType() {
@@ -787,7 +1181,7 @@
         async function updateAllowance() {
             const val = parseFloat(document.getElementById('newAllowanceInput').value);
             if (isNaN(val) || val < 0) {
-                alert('Please enter a valid allowance value.');
+                showToast('Please enter a valid allowance value.', 'error');
                 return;
             }
 
@@ -798,7 +1192,7 @@
                 document.getElementById('newAllowanceInput').value = '';
                 updateDashboard();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -821,7 +1215,7 @@
                 document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
                 previewCategoryType();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -830,7 +1224,7 @@
                 await apiRequest(`/api/expenses/${id}`, 'DELETE');
                 await loadUserData();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -838,33 +1232,34 @@
             const expense = dbState.expenses.find(ex => ex.id === id);
             if (!expense) return;
 
-            const newDescription = prompt('Edit description:', expense.description);
-            if (newDescription === null) return;
+            const values = await showAppDialog({
+                title: 'Edit expense',
+                message: 'Update the details for this expense.',
+                fields: [
+                    { label: 'Description', value: expense.description, required: false },
+                    { label: 'Amount (₱)', type: 'number', value: expense.amount.toFixed(2), min: '0.01', step: 'any' },
+                    { label: 'Category', type: 'select', value: expense.category, options: ALL_CATEGORIES },
+                    { label: 'Date', type: 'date', value: expense.date }
+                ]
+            });
+            if (values === null) return;
 
-            const newAmount = parseFloat(prompt('Edit amount:', expense.amount.toFixed(2)));
+            const newAmount = parseFloat(values[1]);
             if (isNaN(newAmount) || newAmount <= 0) {
-                alert('Amount must be a valid number greater than zero.');
+                showToast('Amount must be a valid number greater than zero.', 'error');
                 return;
             }
 
-            const currentCategory = expense.category;
-            const categoryChoice = prompt(`Edit category (${ALL_CATEGORIES.join(', ')}):`, currentCategory);
-            if (categoryChoice === null) return;
-
-            const category = ALL_CATEGORIES.includes(categoryChoice) ? categoryChoice : currentCategory;
-            const newDate = prompt('Edit date (YYYY-MM-DD):', expense.date);
-            if (newDate === null) return;
-
             try {
                 await apiRequest(`/api/expenses/${id}`, 'PUT', {
-                    description: newDescription.trim() || expense.description,
+                    description: values[0].trim() || expense.description,
                     amount: newAmount,
-                    category,
-                    date: newDate
+                    category: values[2],
+                    date: values[3]
                 });
                 await loadUserData();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -879,16 +1274,53 @@
                 await loadUserData();
                 e.target.reset();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
-        async function contributeGoal(id, amount) {
+        async function contributeGoal(id) {
+            const goal = dbState.goals.find(item => item.id === id);
+            if (!goal) return;
+
+            const remaining = Math.max(0, goal.target - goal.saved);
+            const maxContribution = Math.floor((remaining + 1e-8) * 100) / 100;
+            if (maxContribution < 0.01) {
+                showToast('This savings goal is already complete.', 'info');
+                return;
+            }
+
+            const values = await showAppDialog({
+                title: `Add savings to ${goal.name}`,
+                message: `You have ${chartCurrency.format(remaining)} left to reach this goal. Enter the amount you saved.`,
+                fields: [
+                    {
+                        label: 'Amount to save (₱)',
+                        type: 'number',
+                        min: '0.01',
+                        max: maxContribution.toFixed(2),
+                        step: '0.01'
+                    }
+                ],
+                confirmLabel: 'Add Savings'
+            });
+            if (values === null) return;
+
+            const amount = Number(values[0]);
+            if (!Number.isFinite(amount) || amount <= 0) {
+                showToast('Enter a valid savings amount greater than zero.', 'error');
+                return;
+            }
+            if (amount > maxContribution) {
+                showToast(`Amount cannot exceed the remaining ${chartCurrency.format(maxContribution)}.`, 'error');
+                return;
+            }
+
             try {
                 await apiRequest(`/api/goals/${id}/contribute`, 'POST', { amount });
                 await loadUserData();
+                showToast(`${chartCurrency.format(amount)} added to ${goal.name}.`, 'success');
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -896,28 +1328,33 @@
             const goal = dbState.goals.find(g => g.id === id);
             if (!goal) return;
 
-            const newName = prompt('Edit goal name:', goal.name);
-            if (newName === null) return;
+            const values = await showAppDialog({
+                title: 'Edit savings goal',
+                message: 'Update your goal name, target, and deadline.',
+                fields: [
+                    { label: 'Goal Name', value: goal.name, required: false },
+                    { label: 'Target Amount (₱)', type: 'number', value: goal.target.toFixed(2), min: '0.01', step: 'any' },
+                    { label: 'Deadline', type: 'date', value: goal.deadline || '' }
+                ]
+            });
+            if (values === null) return;
 
-            const newTarget = parseFloat(prompt('Edit target amount:', goal.target.toFixed(2)));
+            const newTarget = parseFloat(values[1]);
             if (isNaN(newTarget) || newTarget <= 0) {
-                alert('Target must be greater than zero.');
+                showToast('Target must be greater than zero.', 'error');
                 return;
             }
 
-            const newDeadline = prompt('Edit deadline (YYYY-MM-DD):', goal.deadline || '');
-            if (newDeadline === null) return;
-
             try {
                 await apiRequest(`/api/goals/${id}`, 'PUT', {
-                    name: newName.trim() || goal.name,
+                    name: values[0].trim() || goal.name,
                     target: newTarget,
                     saved: Math.min(goal.saved, newTarget),
-                    deadline: newDeadline.trim()
+                    deadline: values[2].trim()
                 });
                 await loadUserData();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -926,7 +1363,7 @@
                 await apiRequest(`/api/goals/${id}`, 'DELETE');
                 await loadUserData();
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         }
 
@@ -1009,6 +1446,8 @@
                 goalsDiv.innerHTML = dbState.goals.map(g => {
                     const gPct = Math.min(100, Math.round((g.saved / g.target) * 100));
                     const isAchieved = g.saved >= g.target;
+                    const remaining = Math.max(0, g.target - g.saved);
+                    const maxContribution = Math.floor((remaining + 1e-8) * 100) / 100;
                     const daysRemaining = g.deadline ? getDaysRemaining(g.deadline) : null;
                     const deadlineText = !g.deadline
                         ? 'No deadline set'
@@ -1037,9 +1476,7 @@
                             <p style="font-size: 0.85rem; color: ${deadlineColor}; margin-bottom: 8px;">${deadlineText}</p>
                             <div class="progress-container"><div class="progress-bar" style="width: ${gPct}%;"></div></div>
                             <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
-                                <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="contributeGoal(${id=g.id}, 20)">+₱20</button>
-                                <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="contributeGoal(${id=g.id}, 50)">+₱50</button>
-                                <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="contributeGoal(${id=g.id}, 100)">+₱100</button>
+                                ${!isAchieved && maxContribution >= 0.01 ? `<button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="contributeGoal(${g.id})">Add Savings</button>` : ''}
                                 <button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="editGoal(${g.id})">Edit</button>
                                 ${isAchieved ? `<button class="btn btn-alt" style="padding: 4px 10px; font-size: 0.8rem; width: auto; background: var(--danger-soft); color: var(--danger); border-color: var(--danger);" onclick="deleteGoal(${g.id})">Delete</button>` : ''}
                             </div>
@@ -1074,6 +1511,8 @@
         const chartCurrency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
         const SVG_NS = 'http://www.w3.org/2000/svg';
         let currentReportExpenses = [];
+        let selectedInsightsPeriod = 'weekly';
+        let currentInsightsReport = null;
 
         function createSvgElement(tag, attributes = {}) {
             const element = document.createElementNS(SVG_NS, tag);
@@ -1089,9 +1528,9 @@
             container.appendChild(text);
         }
 
-        function renderCategoryChart(expenses) {
-            const chart = document.getElementById('categoryChart');
-            const legend = document.getElementById('categoryChartLegend');
+        function renderCategoryChart(expenses, chartId = 'categoryChart', legendId = 'categoryChartLegend') {
+            const chart = document.getElementById(chartId);
+            const legend = document.getElementById(legendId);
             const totals = new Map();
             expenses.forEach(expense => totals.set(expense.category, (totals.get(expense.category) || 0) + expense.amount));
             const categories = [...totals.entries()].sort((a, b) => b[1] - a[1]);
@@ -1250,6 +1689,277 @@
             document.getElementById('exportReportBtn').disabled = filtered.length === 0;
             renderCategoryChart(filtered);
             renderDailySpendingChart(filtered, cutoff, new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+        }
+
+        function insightDateKey(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function getSmartInsightsRange(period, currentDate = new Date()) {
+            const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+            let start;
+            let previousStart;
+            let previousEnd;
+
+            if (period === 'weekly') {
+                start = new Date(today);
+                start.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+                previousStart = new Date(start);
+                previousStart.setDate(start.getDate() - 7);
+                previousEnd = new Date(previousStart);
+                previousEnd.setDate(previousStart.getDate() + daysBetween(start, today) - 1);
+            } else if (period === 'monthly') {
+                start = new Date(today.getFullYear(), today.getMonth(), 1);
+                const previousMonthLastDay = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+                previousStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                previousEnd = new Date(today.getFullYear(), today.getMonth() - 1, Math.min(today.getDate(), previousMonthLastDay));
+            } else {
+                start = new Date(today.getFullYear(), 0, 1);
+                previousStart = new Date(today.getFullYear() - 1, 0, 1);
+                const previousYearLastDay = new Date(today.getFullYear() - 1, today.getMonth() + 1, 0).getDate();
+                previousEnd = new Date(today.getFullYear() - 1, today.getMonth(), Math.min(today.getDate(), previousYearLastDay));
+            }
+
+            const periodLabel = period === 'weekly' ? 'week' : period === 'monthly' ? 'month' : 'year';
+            const reportPeriodLabel = period === 'weekly' ? 'Weekly' : period === 'monthly' ? 'Monthly' : 'Yearly';
+            const dateLabel = date => date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+            return {
+                period,
+                periodLabel,
+                reportTitle: `${reportPeriodLabel} Spending Report`,
+                summaryLabel: `Your spending summary for this ${periodLabel}`,
+                start,
+                end: today,
+                previousStart,
+                previousEnd,
+                elapsedDays: daysBetween(start, today),
+                rangeLabel: `${dateLabel(start)} – ${dateLabel(today)}`,
+                previousRangeLabel: `${dateLabel(previousStart)} – ${dateLabel(previousEnd)}`
+            };
+        }
+
+        function daysBetween(start, end) {
+            const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+            const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+            return Math.floor((endUtc - startUtc) / 86400000) + 1;
+        }
+
+        function selectInsightsPeriod(period) {
+            selectedInsightsPeriod = period;
+            document.querySelectorAll('.insight-period-btn').forEach(button => {
+                button.classList.toggle('active', button.dataset.insightPeriod === period);
+                button.setAttribute('aria-pressed', button.dataset.insightPeriod === period ? 'true' : 'false');
+            });
+            renderSmartInsights();
+        }
+
+        function renderSmartInsights() {
+            const range = getSmartInsightsRange(selectedInsightsPeriod);
+            const startKey = insightDateKey(range.start);
+            const endKey = insightDateKey(range.end);
+            const previousStartKey = insightDateKey(range.previousStart);
+            const previousEndKey = insightDateKey(range.previousEnd);
+            const currentExpenses = dbState.expenses.filter(expense => expense.date >= startKey && expense.date <= endKey);
+            const previousExpenses = dbState.expenses.filter(expense => expense.date >= previousStartKey && expense.date <= previousEndKey);
+            const total = currentExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+            const previousTotal = previousExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+            const categoryTotals = new Map();
+            currentExpenses.forEach(expense => {
+                categoryTotals.set(expense.category, (categoryTotals.get(expense.category) || 0) + Number(expense.amount || 0));
+            });
+            const categories = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1]);
+            const highestCategory = categories[0] || null;
+            const wantsTotal = currentExpenses
+                .filter(expense => expense.type === 'Want')
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+            const potentialSavings = wantsTotal * 0.1;
+            const periodBudget = dbState.allowance * range.elapsedDays;
+            const dailyAverage = total / range.elapsedDays;
+            const goalsTarget = dbState.goals.reduce((sum, goal) => sum + Number(goal.target || 0), 0);
+            const goalsSaved = dbState.goals.reduce((sum, goal) => sum + Number(goal.saved || 0), 0);
+            const savingsPercent = goalsTarget > 0 ? Math.min(100, Math.round(goalsSaved / goalsTarget * 100)) : 0;
+
+            currentInsightsReport = {
+                range,
+                expenses: currentExpenses,
+                previousTotal,
+                total,
+                periodBudget,
+                categories,
+                potentialSavings
+            };
+
+            document.getElementById('insightsReportHeading').textContent = range.reportTitle;
+            document.getElementById('insightsPeriodRange').textContent = range.rangeLabel;
+            document.getElementById('insightsSummaryPeriod').textContent = range.summaryLabel;
+            document.getElementById('insightsTotalExpenses').textContent = chartCurrency.format(total);
+            renderCategoryChart(currentExpenses, 'insightsCategoryChart', 'insightsCategoryLegend');
+
+            const analysis = document.getElementById('insightsAnalysis');
+            const highestText = document.getElementById('insightsHighestCategory');
+            const suggestions = document.getElementById('insightsSuggestions');
+            suggestions.replaceChildren();
+
+            if (currentExpenses.length === 0) {
+                analysis.textContent = 'No expense records available for this period yet.';
+                highestText.textContent = 'No expense records available for this period yet.';
+                const item = document.createElement('li');
+                item.textContent = 'Record expenses to receive suggestions based on your spending.';
+                suggestions.appendChild(item);
+            } else {
+                const share = Math.round(highestCategory[1] / total * 100);
+                highestText.textContent = `${highestCategory[0]} — ${chartCurrency.format(highestCategory[1])} (${share}% of expenses).`;
+                const messages = [`Your highest spending category is ${highestCategory[0]}, accounting for ${share}% of your total expenses.`];
+                if (previousTotal > 0) {
+                    if (total > previousTotal) messages.push('Your spending has increased compared to the previous period.');
+                    else if (total < previousTotal) messages.push('Great job! Your expenses have decreased compared to the previous period.');
+                    else messages.push('Your spending is unchanged compared to the previous period.');
+                }
+                if (periodBudget > 0) {
+                    messages.push(total > periodBudget
+                        ? `You have exceeded your allowance-based budget by ${chartCurrency.format(total - periodBudget)}.`
+                        : 'You are within your allowance-based budget.');
+                } else {
+                    messages.push('Set a daily allowance to compare spending with your budget.');
+                }
+                analysis.textContent = messages.join(' ');
+
+                const addSuggestion = text => {
+                    const item = document.createElement('li');
+                    item.textContent = text;
+                    suggestions.appendChild(item);
+                };
+                const totalsByCategory = new Map(categories);
+                if ((totalsByCategory.get('Food') || 0) / total >= 0.2) {
+                    addSuggestion('Consider preparing meals at home to reduce food expenses.');
+                }
+                if ((totalsByCategory.get('Entertainment') || 0) / total >= 0.15) {
+                    addSuggestion('Try limiting unnecessary entertainment purchases.');
+                }
+                if ((totalsByCategory.get('Transportation') || 0) / total >= 0.15) {
+                    addSuggestion('Plan your trips to avoid unnecessary transportation costs.');
+                }
+                if (wantsTotal > 0) {
+                    addSuggestion(`Reducing nonessential Wants spending by 10% could save about ${chartCurrency.format(potentialSavings)}.`);
+                }
+                if (suggestions.children.length === 0) {
+                    addSuggestion('Keep tracking your expenses to spot changes in your spending habits.');
+                }
+            }
+
+            document.getElementById('insightsPotentialSavings').textContent = chartCurrency.format(potentialSavings);
+            document.getElementById('insightsPotentialSavingsNote').textContent = wantsTotal > 0
+                ? `Estimate assumes reducing Wants spending by 10% (${chartCurrency.format(wantsTotal)} recorded this period).`
+                : 'Record Wants expenses to calculate a potential-savings estimate.';
+            document.getElementById('insightsSavingsAmount').textContent = `${chartCurrency.format(goalsSaved)} saved of ${chartCurrency.format(goalsTarget)}`;
+            document.getElementById('insightsSavingsPercent').textContent = `${savingsPercent}%`;
+            document.getElementById('insightsSavingsBar').style.width = `${savingsPercent}%`;
+            const savingsProgress = document.getElementById('insightsSavingsProgress');
+            savingsProgress.setAttribute('aria-valuenow', String(savingsPercent));
+            document.getElementById('insightsSavingsNote').textContent = goalsTarget > 0
+                ? `${chartCurrency.format(Math.max(0, goalsTarget - goalsSaved))} remaining across your savings goals.`
+                : 'Create a savings goal in Savings Vault to track your progress here.';
+
+            renderInsightsExpenseDetails(currentExpenses);
+            renderInsightsComparison(currentInsightsReport);
+        }
+
+        function renderInsightsExpenseDetails(expenses) {
+            const rows = document.getElementById('insightsExpenseRows');
+            rows.replaceChildren();
+            const sortedExpenses = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+            if (sortedExpenses.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 4;
+                cell.className = 'chart-empty';
+                cell.textContent = 'No expenses recorded in this period.';
+                row.appendChild(cell);
+                rows.appendChild(row);
+                return;
+            }
+            sortedExpenses.forEach(expense => {
+                const row = document.createElement('tr');
+                [expense.date, expense.description, expense.category, chartCurrency.format(Number(expense.amount || 0))].forEach(value => {
+                    const cell = document.createElement('td');
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+                rows.appendChild(row);
+            });
+        }
+
+        function renderInsightsComparison(report) {
+            const difference = report.total - report.previousTotal;
+            let message;
+            if (report.previousTotal === 0) {
+                message = report.total === 0
+                    ? 'There is no spending in either period to compare.'
+                    : `No expenses were recorded in the comparable previous period (${report.range.previousRangeLabel}).`;
+            } else {
+                const percent = Math.abs(difference / report.previousTotal * 100);
+                const direction = difference > 0 ? 'increased' : difference < 0 ? 'decreased' : 'stayed the same';
+                const change = difference === 0
+                    ? 'Your spending stayed the same'
+                    : `Your spending ${direction} by ${chartCurrency.format(Math.abs(difference))} (${percent.toFixed(1)}%)`;
+                message = `${change} compared with ${report.range.previousRangeLabel}. Previous: ${chartCurrency.format(report.previousTotal)}; current: ${chartCurrency.format(report.total)}.`;
+            }
+            document.getElementById('insightsComparisonText').textContent = message;
+        }
+
+        function toggleInsightsExpenseDetails() {
+            const details = document.getElementById('insightsExpenseDetails');
+            details.classList.toggle('hidden');
+            document.getElementById('insightsDetailsButton').textContent = details.classList.contains('hidden')
+                ? 'View Expense Details'
+                : 'Hide Expense Details';
+        }
+
+        function toggleInsightsComparison() {
+            const comparison = document.getElementById('insightsComparison');
+            comparison.classList.toggle('hidden');
+            document.getElementById('insightsCompareButton').setAttribute(
+                'aria-expanded',
+                comparison.classList.contains('hidden') ? 'false' : 'true'
+            );
+        }
+
+        function downloadSmartInsightsReport() {
+            const report = currentInsightsReport;
+            if (!report) return;
+            const rows = [
+                ['Smart Spending Insights', report.range.reportTitle],
+                ['Period', report.range.rangeLabel],
+                ['Total Expenses (PHP)', report.total.toFixed(2)],
+                ['Allowance-based Budget (PHP)', report.periodBudget.toFixed(2)],
+                ['Potential Savings (10% of Wants, PHP)', report.potentialSavings.toFixed(2)],
+                [],
+                ['Category', 'Amount (PHP)', 'Share (%)'],
+                ...report.categories.map(([category, amount]) => [
+                    category,
+                    amount.toFixed(2),
+                    report.total > 0 ? (amount / report.total * 100).toFixed(1) : '0'
+                ]),
+                [],
+                ['Date', 'Description', 'Category', 'Type', 'Amount (PHP)'],
+                ...report.expenses.map(expense => [
+                    expense.date,
+                    expense.description,
+                    expense.category,
+                    expense.type,
+                    Number(expense.amount).toFixed(2)
+                ])
+            ];
+            const csv = '\uFEFF' + rows.map(row => row.map(escapeCsvCell).join(',')).join('\r\n') + '\r\n';
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `pesowise-smart-insights-${report.range.period}-${insightDateKey(report.range.end)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
         function escapeCsvCell(value) {

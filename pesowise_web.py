@@ -1,15 +1,24 @@
 from datetime import date, timedelta
+from email.message import EmailMessage
+import hashlib
+import hmac
+import logging
+import os
 from pathlib import Path
 import re
+import secrets
+import smtplib
 import sqlite3
+import time
 from flask import Flask, request, redirect, url_for, session, render_template, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+app.logger.setLevel(logging.INFO)
 app.secret_key = "change-this-local-demo-secret"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-DB_PATH = Path(__file__).with_name("pesowise.db")
+DB_PATH = Path(os.environ.get("PESOWISE_DB_PATH", Path(__file__).with_name("pesowise.db")))
 
 NEED_CATEGORIES = {
     "Food", "Transportation", "School Supplies", "School Projects",
@@ -21,6 +30,9 @@ WANT_CATEGORIES = {
 }
 CATEGORIES = sorted(NEED_CATEGORIES | WANT_CATEGORIES)
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+VERIFICATION_CODE_RE = re.compile(r"^\d{6}$")
+VERIFICATION_CODE_TTL_SECONDS = 10 * 60
+MAX_VERIFICATION_ATTEMPTS = 5
 
 
 def get_db():
@@ -54,6 +66,37 @@ def get_user_by_email(email):
             (email,),
         ).fetchone()
     return row
+
+
+def send_email(email, subject, body):
+    smtp_username = os.environ.get("SMTP_USERNAME")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
+    sender = os.environ.get("SMTP_SENDER", smtp_username or "")
+    if not smtp_username or not smtp_password or not sender:
+        raise RuntimeError("Email delivery is not configured.")
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = email
+    message.set_content(body)
+
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    with smtplib.SMTP(host, port, timeout=15) as smtp:
+        smtp.starttls()
+        smtp.login(smtp_username, smtp_password)
+        smtp.send_message(message)
+
+
+def send_verification_email(email, code):
+    send_email(
+        email,
+        "Verify your PesoWise account",
+        f"Your PesoWise verification code is {code}. "
+        "It expires in 10 minutes. If you did not request this, ignore this email.",
+    )
+
 
 def init_db():
     with get_db() as db:
@@ -92,6 +135,42 @@ def init_db():
         goal_columns = {row["name"] for row in db.execute("PRAGMA table_info(savings_goals)")}
         if "deadline" not in goal_columns:
             db.execute("ALTER TABLE savings_goals ADD COLUMN deadline TEXT")
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS email_verifications (
+                email TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                password TEXT NOT NULL,
+                daily_allowance REAL NOT NULL,
+                code_hash TEXT NOT NULL,
+                expires_at INTEGER NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_verifications (
+                email TEXT PRIMARY KEY,
+                code_hash TEXT NOT NULL,
+                expires_at INTEGER NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+
+
+def hash_verification_code(email, code):
+    return hmac.new(
+        app.secret_key.encode("utf-8"),
+        f"{email}:{code}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def send_password_reset_email(email, code):
+    send_email(
+        email,
+        "Reset your PesoWise password",
+        f"Your PesoWise password reset code is {code}. "
+        "It expires in 10 minutes. If you did not request this, ignore this email.",
+    )
 
 
 def is_valid_goal_deadline(deadline):
@@ -192,6 +271,8 @@ def api_register():
         return jsonify({"error": "Please enter your full name."}), 400
     if not email or not EMAIL_RE.match(email):
         return jsonify({"error": "Please enter a valid email address."}), 400
+    if email.rsplit("@", 1)[1] != "gmail.com":
+        return jsonify({"error": "Please use a Gmail address ending in @gmail.com."}), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters long."}), 400
     if password != confirm_password:
@@ -202,17 +283,84 @@ def api_register():
     if get_user_by_email(email):
         return jsonify({"error": "An account with this email already exists."}), 409
 
-    hashed_password = generate_password_hash(password)
+    code = f"{secrets.randbelow(1_000_000):06d}"
     with get_db() as db:
+        db.execute(
+            """INSERT OR REPLACE INTO email_verifications
+               (email, name, password, daily_allowance, code_hash, expires_at, attempts)
+               VALUES (?, ?, ?, ?, ?, ?, 0)""",
+            (
+                email,
+                name,
+                generate_password_hash(password),
+                allowance,
+                hash_verification_code(email, code),
+                int(time.time()) + VERIFICATION_CODE_TTL_SECONDS,
+            ),
+        )
+
+    try:
+        send_verification_email(email, code)
+    except (OSError, smtplib.SMTPException, RuntimeError, ValueError):
+        app.logger.exception("Failed to send account verification email.")
+        with get_db() as db:
+            db.execute("DELETE FROM email_verifications WHERE email = ?", (email,))
+        return jsonify({"error": "We could not send a verification email. Please try again later."}), 503
+
+    return jsonify({
+        "message": "If this Gmail address can receive email, a verification code should arrive. Enter it to create your account."
+    }), 202
+
+
+@app.route("/api/verify-email", methods=["POST"])
+def api_verify_email():
+    payload = request.get_json(silent=True) or {}
+    email = normalise_email(payload.get("email"))
+    code = (payload.get("code") or "").strip()
+    if not email or not EMAIL_RE.match(email) or not VERIFICATION_CODE_RE.match(code):
+        return jsonify({"error": "Enter the Gmail address and its 6-digit verification code."}), 400
+
+    with get_db() as db:
+        pending = db.execute(
+            "SELECT * FROM email_verifications WHERE email = ?",
+            (email,),
+        ).fetchone()
+        if pending is None:
+            return jsonify({"error": "No pending verification was found. Please create your account again."}), 400
+        if pending["expires_at"] < int(time.time()):
+            db.execute("DELETE FROM email_verifications WHERE email = ?", (email,))
+            return jsonify({"error": "That verification code has expired. Please create your account again."}), 400
+        if pending["attempts"] >= MAX_VERIFICATION_ATTEMPTS:
+            db.execute("DELETE FROM email_verifications WHERE email = ?", (email,))
+            return jsonify({"error": "Too many incorrect codes. Please create your account again."}), 429
+        if not secrets.compare_digest(
+            pending["code_hash"],
+            hash_verification_code(email, code),
+        ):
+            attempts = pending["attempts"] + 1
+            if attempts >= MAX_VERIFICATION_ATTEMPTS:
+                db.execute("DELETE FROM email_verifications WHERE email = ?", (email,))
+                return jsonify({"error": "Too many incorrect codes. Please create your account again."}), 429
+            db.execute(
+                "UPDATE email_verifications SET attempts = ? WHERE email = ?",
+                (attempts, email),
+            )
+            return jsonify({"error": "The verification code is incorrect."}), 400
+
+        if db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone():
+            db.execute("DELETE FROM email_verifications WHERE email = ?", (email,))
+            return jsonify({"error": "An account with this email already exists."}), 409
+
         cursor = db.execute(
             "INSERT INTO users (name, email, password, daily_allowance) VALUES (?, ?, ?, ?)",
-            (name, email, hashed_password, allowance),
+            (pending["name"], email, pending["password"], pending["daily_allowance"]),
         )
         user_id = cursor.lastrowid
+        db.execute("DELETE FROM email_verifications WHERE email = ?", (email,))
 
     session["user_id"] = user_id
     user = get_user_by_email(email)
-    return jsonify({"message": "Account created successfully.", "user": user_to_dict(user)}), 201
+    return jsonify({"message": "Email verified and account created successfully.", "user": user_to_dict(user)}), 201
 
 
 @app.route("/api/login", methods=["POST"])
@@ -229,32 +377,139 @@ def api_login():
     return jsonify({"message": "Login successful.", "user": user_to_dict(user)}), 200
 
 
+@app.route("/api/request-password-reset", methods=["POST"])
+def api_request_password_reset():
+    payload = request.get_json(silent=True) or {}
+    email = normalise_email(payload.get("email"))
+
+    if not email or not EMAIL_RE.match(email):
+        return jsonify({"error": "Please enter a valid email address."}), 400
+
+    user = get_user_by_email(email)
+    if user is not None:
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        with get_db() as db:
+            db.execute(
+                """INSERT OR REPLACE INTO password_reset_verifications
+                   (email, code_hash, expires_at, attempts)
+                   VALUES (?, ?, ?, 0)""",
+                (
+                    email,
+                    hash_verification_code(email, code),
+                    int(time.time()) + VERIFICATION_CODE_TTL_SECONDS,
+                ),
+            )
+
+        try:
+            send_password_reset_email(email, code)
+        except (OSError, smtplib.SMTPException, RuntimeError, ValueError):
+            app.logger.exception("Failed to send password reset email.")
+            with get_db() as db:
+                db.execute(
+                    "DELETE FROM password_reset_verifications WHERE email = ?",
+                    (email,),
+                )
+
+    return jsonify({
+        "message": "If an account exists for this email, a password reset code will arrive if email delivery is available."
+    }), 202
+
+
 @app.route("/api/reset-password", methods=["POST"])
 def api_reset_password():
     payload = request.get_json(silent=True) or {}
     email = normalise_email(payload.get("email"))
-    current_password = (payload.get("currentPassword") or "").strip()
+    code = (payload.get("code") or "").strip()
     new_password = (payload.get("newPassword") or "").strip()
     confirm_password = (payload.get("confirmPassword") or "").strip()
 
     if not email or not EMAIL_RE.match(email):
         return jsonify({"error": "Please enter a valid email address."}), 400
-    if not current_password:
-        return jsonify({"error": "Current password is required to verify that you own this account before changing it."}), 400
+    if not VERIFICATION_CODE_RE.match(code):
+        return jsonify({"error": "Enter the 6-digit password reset code from your email."}), 400
     if len(new_password) < 8:
         return jsonify({"error": "Password must be at least 8 characters long."}), 400
     if new_password != confirm_password:
         return jsonify({"error": "Passwords do not match. Please re-enter them."}), 400
 
-    user = get_user_by_email(email)
+    with get_db() as db:
+        pending = db.execute(
+            "SELECT * FROM password_reset_verifications WHERE email = ?",
+            (email,),
+        ).fetchone()
+        if pending is None:
+            return jsonify({"error": "The password reset request is invalid or expired. Request a new code."}), 400
+        if pending["expires_at"] < int(time.time()):
+            db.execute(
+                "DELETE FROM password_reset_verifications WHERE email = ?",
+                (email,),
+            )
+            return jsonify({"error": "The password reset request is invalid or expired. Request a new code."}), 400
+        if pending["attempts"] >= MAX_VERIFICATION_ATTEMPTS:
+            db.execute(
+                "DELETE FROM password_reset_verifications WHERE email = ?",
+                (email,),
+            )
+            return jsonify({"error": "The password reset request is invalid or expired. Request a new code."}), 400
+        if not secrets.compare_digest(
+            pending["code_hash"],
+            hash_verification_code(email, code),
+        ):
+            attempts = pending["attempts"] + 1
+            if attempts >= MAX_VERIFICATION_ATTEMPTS:
+                db.execute(
+                    "DELETE FROM password_reset_verifications WHERE email = ?",
+                    (email,),
+                )
+                return jsonify({"error": "The password reset request is invalid or expired. Request a new code."}), 400
+            db.execute(
+                "UPDATE password_reset_verifications SET attempts = ? WHERE email = ?",
+                (attempts, email),
+            )
+            return jsonify({"error": "The password reset request is invalid or expired. Request a new code."}), 400
+
+        user = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+        if user is None:
+            db.execute(
+                "DELETE FROM password_reset_verifications WHERE email = ?",
+                (email,),
+            )
+            return jsonify({"error": "The password reset request is invalid or expired. Request a new code."}), 400
+
+        db.execute(
+            "UPDATE users SET password = ? WHERE id = ?",
+            (generate_password_hash(new_password), user["id"]),
+        )
+        db.execute(
+            "DELETE FROM password_reset_verifications WHERE email = ?",
+            (email,),
+        )
+
+    if session.get("user_id") == user["id"]:
+        session.clear()
+
+    return jsonify({"message": "Password reset successful."}), 200
+
+
+@app.route("/api/change-password", methods=["POST"])
+def api_change_password():
+    user = get_current_user()
     if user is None:
-        return jsonify({"error": "No account exists for that email."}), 404
+        return jsonify({"error": "Not authenticated."}), 401
 
-    if session.get("user_id") and session["user_id"] != user["id"]:
-        return jsonify({"error": "This session is not authorized to change this account."}), 403
+    payload = request.get_json(silent=True) or {}
+    current_password = (payload.get("currentPassword") or "").strip()
+    new_password = (payload.get("newPassword") or "").strip()
+    confirm_password = (payload.get("confirmPassword") or "").strip()
 
+    if not current_password:
+        return jsonify({"error": "Current password is required to change your password."}), 400
+    if len(new_password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters long."}), 400
+    if new_password != confirm_password:
+        return jsonify({"error": "Passwords do not match. Please re-enter them."}), 400
     if not check_password_hash(user["password"], current_password):
-        return jsonify({"error": "Current password is incorrect. Please verify your identity before resetting the password."}), 401
+        return jsonify({"error": "Current password is incorrect."}), 401
 
     with get_db() as db:
         db.execute(
@@ -262,7 +517,7 @@ def api_reset_password():
             (generate_password_hash(new_password), user["id"]),
         )
 
-    return jsonify({"message": "Password reset successful."}), 200
+    return jsonify({"message": "Password changed successfully."}), 200
 
 
 @app.route("/api/account", methods=["DELETE"])
